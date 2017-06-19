@@ -13,6 +13,7 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.ScrolledComposite;
 import org.eclipse.swt.events.KeyAdapter;
 import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.SelectionEvent;
@@ -25,8 +26,12 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
+import org.eclipse.swt.widgets.Tree;
+import org.eclipse.swt.widgets.TreeItem;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
@@ -40,23 +45,53 @@ public class WorldEditor {
         final Shell shell = new Shell(display);
 
         shell.setLayout(new FillLayout());
-        shell.setText("Button Example");
+        shell.setText("World Editor");
 
-        final Button button = new Button(shell, SWT.PUSH);
-        button.setText("Click Me");
+        Menu menuBar = new Menu(shell, SWT.BAR);
+        MenuItem cascadeFileMenu = new MenuItem(menuBar, SWT.CASCADE);
+        cascadeFileMenu.setText("&File");
 
-        final Text text = new Text(shell, SWT.SHADOW_IN);
+        Menu fileMenu = new Menu(shell, SWT.DROP_DOWN);
+        cascadeFileMenu.setMenu(fileMenu);
 
-        button.addSelectionListener(new SelectionListener() {
+        MenuItem cascadeEditMenu = new MenuItem(menuBar, SWT.CASCADE);
+        cascadeEditMenu.setText("&Edit");
 
-            public void widgetSelected(SelectionEvent event) {
-                text.setText("No worries!");
+        MenuItem subMenuItem = new MenuItem(fileMenu, SWT.CASCADE);
+        subMenuItem.setText("Import");
+
+        Menu submenu = new Menu(shell, SWT.DROP_DOWN);
+        subMenuItem.setMenu(submenu);
+
+        MenuItem feedItem = new MenuItem(submenu, SWT.PUSH);
+        feedItem.setText("&Import news feed...");
+
+        MenuItem bmarks = new MenuItem(submenu, SWT.PUSH);
+        bmarks.setText("&Import bookmarks...");
+
+        MenuItem mailItem = new MenuItem(submenu, SWT.PUSH);
+        mailItem.setText("&Import mail...");
+
+        MenuItem exitItem = new MenuItem(fileMenu, SWT.PUSH);
+        exitItem.setText("&Exit");
+        shell.setMenuBar(menuBar);
+        
+        ScrolledComposite c2 = new ScrolledComposite(shell,SWT.BORDER);
+        final Tree tree = new Tree(c2, SWT.CHECK | SWT.BORDER | SWT.V_SCROLL
+                | SWT.H_SCROLL);
+        tree.setSize(500, 800);
+        for (int loopIndex0 = 0; loopIndex0 < 10; loopIndex0++) {
+            TreeItem treeItem0 = new TreeItem(tree, 0);
+            treeItem0.setText("WorldObject " + loopIndex0);
+            for (int loopIndex1 = 0; loopIndex1 < 10; loopIndex1++) {
+                TreeItem treeItem1 = new TreeItem(treeItem0, 0);
+                treeItem1.setText("Component" + loopIndex1);
+                
             }
+        }
 
-            public void widgetDefaultSelected(SelectionEvent event) {
-                text.setText("No worries!");
-            }
-        });
+        
+        
         shell.addKeyListener(new KeyAdapter() {
 
             public void keyPressed(KeyEvent e) {
@@ -96,6 +131,17 @@ public class WorldEditor {
             }
         });
 
+        final Text text = new Text(shell, SWT.SHADOW_IN);
+        tree.addListener(SWT.Selection, new Listener() {
+            public void handleEvent(Event event) {
+                if (event.detail == SWT.CHECK) {
+                    text.setText(event.item + " was checked.");
+                } else {
+                    text.setText(event.item + " was selected");
+                }
+            }
+        });
+ 
         glClearColor(0.3f, 0.5f, 0.8f, 1.0f);
 
         // Create a simple shader program
@@ -151,6 +197,7 @@ public class WorldEditor {
         glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0L);
 
         shell.setSize(800, 600);
+        shell.setMaximized(true);
         shell.open();
 
         display.asyncExec(new Runnable() {
