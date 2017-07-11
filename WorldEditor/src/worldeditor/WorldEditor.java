@@ -114,7 +114,7 @@ public class WorldEditor extends GGApplication{
             }
         });
         
-        ExtensionManager.addExtension(new SWTExtension(shell));
+        ExtensionManager.addExtension(new SWTExtension(shell, display));
         
         WindowInfo w = new WindowInfo();
         w.width = 640;
@@ -156,9 +156,7 @@ public class WorldEditor extends GGApplication{
 
     @Override
     public void render() {
-         if (!display.readAndDispatch()) {
-            display.sleep();
-        }
+        
     }
 
     @Override
