@@ -5,24 +5,22 @@
  */
 package worldeditor;
 
-import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL15.*;
-import static org.lwjgl.opengl.GL20.*;
 
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
-
+import com.opengg.core.engine.GGApplication;
+import com.opengg.core.engine.OpenGG;
+import com.opengg.core.engine.Resource;
+import com.opengg.core.extension.ExtensionManager;
+import com.opengg.core.gui.GUI;
+import com.opengg.core.gui.GUIText;
+import com.opengg.core.math.Vector2f;
+import com.opengg.core.render.texture.text.GGFont;
+import com.opengg.core.render.window.WindowInfo;
+import com.opengg.module.swt.SWTExtension;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.ScrolledComposite;
 import org.eclipse.swt.events.KeyAdapter;
 import org.eclipse.swt.events.KeyEvent;
-import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.events.SelectionListener;
-import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FillLayout;
-import org.eclipse.swt.opengl.GLCanvas;
-import org.eclipse.swt.opengl.GLData;
-import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
@@ -32,17 +30,17 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
-import org.lwjgl.BufferUtils;
-import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GL11;
 
-public class WorldEditor {
+public class WorldEditor extends GGApplication{
+    private static Display display;
+    private static Shell shell;
+    private static Tree tree;
 
     public static void main(String[] args) {
-        int minClientWidth = 640;
-        int minClientHeight = 480;
-        final Display display = new Display();
-        final Shell shell = new Shell(display);
+        int minClientWidth = 1920;
+        int minClientHeight = 1080;
+        display = new Display();
+        shell = new Shell(display);
 
         shell.setLayout(new FillLayout());
         shell.setText("World Editor");
@@ -77,7 +75,7 @@ public class WorldEditor {
         shell.setMenuBar(menuBar);
         
         ScrolledComposite c2 = new ScrolledComposite(shell,SWT.BORDER);
-        final Tree tree = new Tree(c2, SWT.CHECK | SWT.BORDER | SWT.V_SCROLL
+        tree = new Tree(c2, SWT.CHECK | SWT.BORDER | SWT.V_SCROLL
                 | SWT.H_SCROLL);
         tree.setSize(500, 800);
         for (int loopIndex0 = 0; loopIndex0 < 10; loopIndex0++) {
@@ -89,34 +87,19 @@ public class WorldEditor {
                 
             }
         }
-
-        
         
         shell.addKeyListener(new KeyAdapter() {
-
             public void keyPressed(KeyEvent e) {
                 if (e.stateMask == SWT.ALT && (e.keyCode == SWT.KEYPAD_CR || e.keyCode == SWT.CR)) {
                     shell.setFullScreen(!shell.getFullScreen());
                 }
             }
         });
+        
         int dw = shell.getSize().x - shell.getClientArea().width;
         int dh = shell.getSize().y - shell.getClientArea().height;
         shell.setMinimumSize(minClientWidth + dw, minClientHeight + dh);
-        GLData data = new GLData();
-        data.doubleBuffer = true;
-        final GLCanvas canvas = new GLCanvas(shell, SWT.NO_BACKGROUND | SWT.NO_REDRAW_RESIZE, data);
-        canvas.setCurrent();
-        GL.createCapabilities();
-
-        final Rectangle rect = new Rectangle(0, 0, 0, 0);
-        canvas.addListener(SWT.Resize, new Listener() {
-            public void handleEvent(Event event) {
-                Rectangle bounds = canvas.getBounds();
-                rect.width = bounds.width;
-                rect.height = bounds.height;
-            }
-        });
+        
         shell.addListener(SWT.Traverse, new Listener() {
             public void handleEvent(Event event) {
                 switch (event.detail) {
@@ -130,110 +113,56 @@ public class WorldEditor {
                 }
             }
         });
+        
+        ExtensionManager.addExtension(new SWTExtension(shell));
+        
+        WindowInfo w = new WindowInfo();
+        w.width = 640;
+        w.height = 480;
+        w.resizable = false;
+        w.type = "SWT";
+        w.vsync = true;
+        OpenGG.initialize(new WorldEditor(), w);
+    }
 
-        final Text text = new Text(shell, SWT.SHADOW_IN);
+    @Override
+    public void setup() {
+        
+        GGFont font = Resource.getFont("test", "test.png");
+        com.opengg.core.render.Text text = new com.opengg.core.render.Text("Turmoil has engulfed the Galactic Republic. The taxation of trade routes to outlying star systems is in dispute. \n\n"
+                + " Hoping to resolve the matter with a blockade of deadly battleships, "
+                + " the greedy Trade Federation has stopped all shipping to the small planet of Naboo. \n\n"
+                + " While the congress of the Republic endlessly debates this alarming chain of events,"
+                + " the Supreme Chancellor has secretly dispatched two Jedi Knights,"
+                + " the guardians of peace and justice in the galaxy, to settle the conflict...", new Vector2f(), 1f, 0.5f, false);
+        GUI.addItem("aids", new GUIText(text, font, new Vector2f(0f,0)));
+        
+        final Text updatetext = new Text(shell, SWT.SHADOW_IN);
         tree.addListener(SWT.Selection, new Listener() {
             public void handleEvent(Event event) {
                 if (event.detail == SWT.CHECK) {
-                    text.setText(event.item + " was checked.");
+                    updatetext.setText(event.item + " was checked.");
                 } else {
-                    text.setText(event.item + " was selected");
+                    updatetext.setText(event.item + " was selected");
                 }
             }
         });
- 
-        glClearColor(0.3f, 0.5f, 0.8f, 1.0f);
-
-        // Create a simple shader program
-        int program = glCreateProgram();
-        int vs = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vs,
-                "uniform float rot;"
-                + "uniform float aspect;"
-                + "void main(void) {"
-                + "  vec4 v = gl_Vertex * 0.5;"
-                + "  vec4 v_ = vec4(0.0, 0.0, 0.0, 1.0);"
-                + "  v_.x = v.x * cos(rot) - v.y * sin(rot);"
-                + "  v_.y = v.y * cos(rot) + v.x * sin(rot);"
-                + "  v_.x /= aspect;"
-                + "  gl_Position = v_;"
-                + "}");
-        glCompileShader(vs);
-        glAttachShader(program, vs);
-        int fs = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fs,
-                "void main(void) {"
-                + "  gl_FragColor = vec4(0.1, 0.3, 0.5, 1.0);"
-                + "}");
-        glCompileShader(fs);
-        glAttachShader(program, fs);
-        glLinkProgram(program);
-        glUseProgram(program);
-        final int rotLocation = glGetUniformLocation(program, "rot");
-        final int aspectLocation = glGetUniformLocation(program, "aspect");
-
-        // Create a simple quad
-        int vbo = glGenBuffers();
-        int ibo = glGenBuffers();
-        float[] vertices = {
-            -1, -1, 0,
-            1, -1, 0,
-            1, 1, 0,
-            -1, 1, 0
-        };
-        int[] indices = {
-            0, 1, 2,
-            2, 3, 0
-        };
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, (FloatBuffer) BufferUtils
-                .createFloatBuffer(vertices.length).put(vertices).flip(),
-                GL_STATIC_DRAW);
-        glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, (IntBuffer) BufferUtils
-                .createIntBuffer(indices.length).put(indices).flip(),
-                GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0L);
-
-        shell.setSize(800, 600);
-        shell.setMaximized(true);
+        
+        //shell.setSize(800, 600);
+        //shell.setMaximized(true);
         shell.open();
+        
+    }
 
-        display.asyncExec(new Runnable() {
-            float rot;
-            long lastTime = System.nanoTime();
-
-            public void run() {
-                if (!canvas.isDisposed()) {
-                    canvas.setCurrent();
-                    glClear(GL_COLOR_BUFFER_BIT);
-                    glViewport(0, 0, rect.width, rect.height);
-
-                    float aspect = (float) rect.width / rect.height;
-                    glUniform1f(aspectLocation, aspect);
-                    glUniform1f(rotLocation, rot);
-                    glDrawElements(GL11.GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-                    canvas.swapBuffers();
-                    display.asyncExec(this);
-
-                    long thisTime = System.nanoTime();
-                    float delta = (thisTime - lastTime) / 1E9f;
-                    rot += delta;
-                    if (rot > 2.0 * Math.PI) {
-                        rot -= 2.0f * (float) Math.PI;
-                    }
-                    lastTime = thisTime;
-                }
-            }
-        });
-
-        while (!shell.isDisposed()) {
-            if (!display.readAndDispatch()) {
-                display.sleep();
-            }
+    @Override
+    public void render() {
+         if (!display.readAndDispatch()) {
+            display.sleep();
         }
-        display.dispose();
+    }
+
+    @Override
+    public void update() {
+        
     }
 }
