@@ -28,7 +28,9 @@ import com.opengg.core.world.World;
 import com.opengg.core.world.components.Component;
 import com.opengg.core.world.components.WorldObject;
 import com.opengg.core.world.components.viewmodel.ComponentViewModel;
+import com.opengg.core.world.components.viewmodel.ViewModelComponentRegisterInfoContainer;
 import com.opengg.core.world.components.viewmodel.ViewModelComponentRegistry;
+import com.opengg.core.world.components.viewmodel.ViewModelInitializer;
 import com.opengg.module.swt.SWTExtension;
 import com.opengg.module.swt.window.GGCanvas;
 import com.opengg.module.swt.window.GLCanvas;
@@ -41,6 +43,7 @@ import org.eclipse.swt.events.KeyAdapter;
 import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.events.VerifyEvent;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
@@ -50,6 +53,7 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.FileDialog;
+import org.eclipse.swt.widgets.List;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
@@ -63,6 +67,8 @@ public class WorldEditor extends GGApplication{
     private static Tree tree;
     private static GGView currentview;
     private static Composite editarea;
+    private static Composite addregion;
+    private static boolean refresh;
 
     public static void main(String[] args) {
         initSWT();
@@ -113,6 +119,7 @@ public class WorldEditor extends GGApplication{
                 ViewModelComponentRegistry.initialize();
                 ViewModelComponentRegistry.registerAllFromJar(result);
                 ViewModelComponentRegistry.createRegisters();
+                updateAddRegion();
             }
         });
         
@@ -127,8 +134,16 @@ public class WorldEditor extends GGApplication{
         c2.setLayout(new FillLayout());
 
         tree = new Tree(c2, SWT.V_SCROLL);
-        tree.addListener(SWT.Selection, (Event event) -> {
-            processTreeEvent(event);
+        tree.addSelectionListener(new SelectionListener(){
+            @Override
+            public void widgetSelected(SelectionEvent event) {
+                useTreeItem((TreeItem)event.item);
+            }
+
+            @Override
+            public void widgetDefaultSelected(SelectionEvent event) {
+                useTreeItem((TreeItem)event.item);
+            }
         });
         tree.pack();
 
@@ -160,11 +175,12 @@ public class WorldEditor extends GGApplication{
     
     public static void initSWT2(){
         editarea = new Composite(shell, SWT.BORDER);
-        editarea.setLayout(new GridLayout(5, false));
+        editarea.setLayout(new GridLayout(6, false));
         editarea.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 2));
         
-        ScrolledComposite addregion = new ScrolledComposite(shell, SWT.BORDER);
+        addregion = new Composite(shell, SWT.BORDER);
         addregion.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
+        addregion.setLayout(new FillLayout());
         
         ScrolledComposite console = new ScrolledComposite(shell, SWT.BORDER | SWT.V_SCROLL);
         console.setLayout(new FillLayout());
@@ -192,6 +208,7 @@ public class WorldEditor extends GGApplication{
         
         System.setOut(new PrintStream(out));
     }
+    private WorldObject w;
     
     @Override
     public void setup() {
@@ -230,18 +247,15 @@ public class WorldEditor extends GGApplication{
                 Resource.getTexturePath("skybox\\majestic_rt.png"),
                 Resource.getTexturePath("skybox\\majestic_lf.png")), 1500f));
         
-        WorldObject w = new WorldObject();
+        w = new WorldObject();
         w.attach(new WorldObject());
         WorldEngine.getCurrent().attach(w);
         WorldEngine.getCurrent().attach(new WorldObject());
         WorldEngine.getCurrent().attach(new WorldObject());
-        World world = WorldEngine.getCurrent();
-        tree.removeAll();
-        for(Component compo : world.getChildren()){
-            TreeItem item = new TreeItem(tree, SWT.NONE);
-            item.setText(compo.getClass().getSimpleName() + ": " + compo.getId());
-            mystery6(compo, item);
-        }
+        
+        refreshComponentList();
+        
+        updateAddRegion();
         shell.open();
     }
 
@@ -250,27 +264,39 @@ public class WorldEditor extends GGApplication{
         ShaderController.setPerspective(90, OpenGG.getWindow().getRatio(), 0.2f, 3000f);
     }
 
+    int i = 0;
+    
     @Override
     public void update() {
+        i++;
+        if(i == 15){
+            i = 0;
+            if(currentview != null && currentview.complete)
+                currentview.update();
+        } 
         
-    }
-    
-    public static void mystery6(Component comp, TreeItem treepart){
-        for(Component compo : comp.getChildren()){
-            TreeItem item = new TreeItem(treepart, SWT.NONE);
-            item.setText(compo.getClass().getSimpleName() + ": " + compo.getId());
-            mystery6(compo, item);
+        if(refresh){
+            refreshComponentList();
+            refresh = false;
         }
     }
-    
-    public static void processTreeEvent(Event e){
-        TreeItem item = (TreeItem)e.item;
+ 
+    public static void useTreeItem(TreeItem item){
+        clearArea(editarea);
+        
         String text = item.getText();
         int id = Integer.parseInt(text.substring(text.lastIndexOf(":") + 2));
         
         Component component = WorldEngine.getCurrent().find(id);
         Class clazz = component.getClass();
         Class vmclass = ViewModelComponentRegistry.findViewModel(clazz);
+        if(vmclass == null){
+            for (Control control : editarea.getChildren()) {
+                control.dispose();
+            }
+            currentview = null;
+            return;
+        }
         
         try {
             ComponentViewModel cvm = (ComponentViewModel) vmclass.newInstance();
@@ -288,6 +314,7 @@ public class WorldEditor extends GGApplication{
         }
         
         GGView view = new GGView(editarea, cvm);
+        currentview = view;
         editarea.layout();
     }
     
@@ -325,5 +352,83 @@ public class WorldEditor extends GGApplication{
             if(!valid)
                 e.doit = false;
         });
+    }
+    
+    public static void updateAddRegion(){
+        clearArea(addregion);
+        
+        List classes = new List(addregion, SWT.V_SCROLL);
+        
+        for(ViewModelComponentRegisterInfoContainer info : ViewModelComponentRegistry.getAllRegistries()){
+            classes.add(info.component.getSimpleName());
+        }
+        
+        classes.addSelectionListener(new SelectionListener() {
+
+            @Override
+            public void widgetSelected(SelectionEvent event) {
+                ViewModelComponentRegisterInfoContainer info = ViewModelComponentRegistry.getAllRegistries().get(classes.getSelectionIndex());
+                Class clazz = info.component;
+                Class vmclazz = ViewModelComponentRegistry.findViewModel(clazz);
+                
+                try {
+                    ComponentViewModel cvm = (ComponentViewModel) vmclazz.newInstance();
+                    ViewModelInitializer vmi = cvm.getInitializer();
+                    if(vmi.elements.isEmpty()){
+                        Component newcomponent = cvm.getFromInitializer(vmi);
+                        WorldEngine.getCurrent().attach(newcomponent);
+                    
+                        cvm.setComponent(newcomponent);
+                        refreshComponentList();
+                        useTreeItem(tree.getItems()[tree.getItems().length-1]);
+                    }
+                    
+
+                } catch (InstantiationException | IllegalAccessException ex) {
+                    GGConsole.error("Failed to create instance of a ComponentViewModel for " + clazz.getName()+ ", is there a default constructor?");
+                }
+            }
+
+            @Override
+            public void widgetDefaultSelected(SelectionEvent event) {
+
+            }
+        });
+    }
+    
+    public static void markForRefresh(){
+        refresh = true;
+    }
+    
+    public static void refreshComponentList(){
+        World world = WorldEngine.getCurrent();
+
+        tree.removeAll();
+        for(Component compo : world.getChildren()){
+            TreeItem item = new TreeItem(tree, SWT.NONE);
+            item.setText(compo.getClass().getSimpleName() + ": " + compo.getId());
+            mystery6(compo, item);
+        }
+        clearArea(editarea);
+        if(tree.getItems().length == 0){
+            currentview = null;
+        }else{
+            tree.setSelection(tree.getItem(0));
+            useTreeItem(tree.getItem(0));
+        }
+    }
+    
+    public static void mystery6(Component comp, TreeItem treepart){
+        for(Component compo : comp.getChildren()){
+            TreeItem item = new TreeItem(treepart, SWT.NONE);
+            item.setText(compo.getClass().getSimpleName() + ": " + compo.getId());
+            mystery6(compo, item);
+        }
+    }
+    
+    public static void clearArea(Composite region){
+        for (Control control : region.getChildren()) {
+            control.dispose();
+        }
     }
 }
