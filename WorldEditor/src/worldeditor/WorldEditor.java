@@ -6,23 +6,47 @@
 package worldeditor;
 
 
+import com.opengg.core.engine.BindController;
 import com.opengg.core.engine.GGApplication;
 import com.opengg.core.engine.OpenGG;
+import com.opengg.core.engine.RenderEngine;
 import com.opengg.core.engine.Resource;
+import com.opengg.core.engine.WorldEngine;
 import com.opengg.core.extension.ExtensionManager;
 import com.opengg.core.gui.GUI;
 import com.opengg.core.gui.GUIText;
+import com.opengg.core.io.ControlType;
+import static com.opengg.core.io.input.keyboard.Key.*;
 import com.opengg.core.math.Vector2f;
+import com.opengg.core.render.shader.ShaderController;
+import com.opengg.core.render.texture.Texture;
 import com.opengg.core.render.texture.text.GGFont;
 import com.opengg.core.render.window.WindowInfo;
+import com.opengg.core.world.Skybox;
+import com.opengg.core.world.World;
+import com.opengg.core.world.components.Component;
+import com.opengg.core.world.components.WorldObject;
+import com.opengg.core.world.components.viewmodel.ComponentViewModel;
+import com.opengg.core.world.components.viewmodel.ViewModelComponentRegistry;
 import com.opengg.module.swt.SWTExtension;
+import com.opengg.module.swt.window.GGCanvas;
+import com.opengg.module.swt.window.GLCanvas;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.ScrolledComposite;
 import org.eclipse.swt.events.KeyAdapter;
 import org.eclipse.swt.events.KeyEvent;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.FillLayout;
+import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
@@ -35,14 +59,32 @@ public class WorldEditor extends GGApplication{
     private static Display display;
     private static Shell shell;
     private static Tree tree;
+    private static ComponentViewModel currentvm;
 
     public static void main(String[] args) {
+        initSWT();
+        
+        ExtensionManager.addExtension(new SWTExtension(shell, display));
+        
+        WindowInfo w = new WindowInfo();
+        w.width = 640;
+        w.height = 480;
+        w.resizable = false;
+        w.type = "SWT";
+        w.vsync = true;
+        OpenGG.initialize(new WorldEditor(), w);
+    }
+
+    public static void initSWT(){
         int minClientWidth = 1920;
         int minClientHeight = 1080;
         display = new Display();
         shell = new Shell(display);
 
-        shell.setLayout(new FillLayout());
+        GridLayout layout = new GridLayout();
+        layout.numColumns = 4;
+
+        shell.setLayout(layout);
         shell.setText("World Editor");
 
         Menu menuBar = new Menu(shell, SWT.BAR);
@@ -55,39 +97,35 @@ public class WorldEditor extends GGApplication{
         MenuItem cascadeEditMenu = new MenuItem(menuBar, SWT.CASCADE);
         cascadeEditMenu.setText("&Edit");
 
-        MenuItem subMenuItem = new MenuItem(fileMenu, SWT.CASCADE);
-        subMenuItem.setText("Import");
+        MenuItem jarload = new MenuItem(fileMenu, SWT.CASCADE);
+        jarload.setText("Load game JAR");
+        jarload.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                FileDialog dialog = new FileDialog(shell, SWT.OPEN);
+                dialog.setFilterExtensions(new String[]{"*.jar"});
+                dialog.setFilterPath(Resource.getLocal(""));
+                String result = dialog.open();
+                ViewModelComponentRegistry.clearRegistry();
+                ViewModelComponentRegistry.initialize();
+                ViewModelComponentRegistry.registerAllFromJar(result);
+                ViewModelComponentRegistry.createRegisters();
+            }
+        });
+        
+        MenuItem mapload = new MenuItem(fileMenu, SWT.PUSH);
+        mapload.setText("Load map");
 
-        Menu submenu = new Menu(shell, SWT.DROP_DOWN);
-        subMenuItem.setMenu(submenu);
-
-        MenuItem feedItem = new MenuItem(submenu, SWT.PUSH);
-        feedItem.setText("&Import news feed...");
-
-        MenuItem bmarks = new MenuItem(submenu, SWT.PUSH);
-        bmarks.setText("&Import bookmarks...");
-
-        MenuItem mailItem = new MenuItem(submenu, SWT.PUSH);
-        mailItem.setText("&Import mail...");
-
-        MenuItem exitItem = new MenuItem(fileMenu, SWT.PUSH);
-        exitItem.setText("&Exit");
         shell.setMenuBar(menuBar);
         
-        ScrolledComposite c2 = new ScrolledComposite(shell,SWT.BORDER);
-        tree = new Tree(c2, SWT.CHECK | SWT.BORDER | SWT.V_SCROLL
-                | SWT.H_SCROLL);
-        tree.setSize(500, 800);
-        for (int loopIndex0 = 0; loopIndex0 < 10; loopIndex0++) {
-            TreeItem treeItem0 = new TreeItem(tree, 0);
-            treeItem0.setText("WorldObject " + loopIndex0);
-            for (int loopIndex1 = 0; loopIndex1 < 10; loopIndex1++) {
-                TreeItem treeItem1 = new TreeItem(treeItem0, 0);
-                treeItem1.setText("Component" + loopIndex1);
-                
-            }
-        }
-        
+        Composite c2 = new Composite(shell,SWT.BORDER);
+        GridData treedata = new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1);
+        c2.setLayoutData(treedata);
+        c2.setLayout(new FillLayout());
+
+        tree = new Tree(c2, SWT.V_SCROLL);
+        tree.pack();
+
         shell.addKeyListener(new KeyAdapter() {
             public void keyPressed(KeyEvent e) {
                 if (e.stateMask == SWT.ALT && (e.keyCode == SWT.KEYPAD_CR || e.keyCode == SWT.CR)) {
@@ -113,31 +151,14 @@ public class WorldEditor extends GGApplication{
                 }
             }
         });
-        
-        ExtensionManager.addExtension(new SWTExtension(shell, display));
-        
-        WindowInfo w = new WindowInfo();
-        w.width = 640;
-        w.height = 480;
-        w.resizable = false;
-        w.type = "SWT";
-        w.vsync = true;
-        OpenGG.initialize(new WorldEditor(), w);
     }
+    
+    public static void initSWT2(){
+        ScrolledComposite editarea = new ScrolledComposite(shell, SWT.BORDER);
+        editarea.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 2));
+        final Text updatetext = new Text(editarea, SWT.SHADOW_IN | SWT.FILL);
 
-    @Override
-    public void setup() {
         
-        GGFont font = Resource.getFont("test", "test.png");
-        com.opengg.core.render.Text text = new com.opengg.core.render.Text("Turmoil has engulfed the Galactic Republic. The taxation of trade routes to outlying star systems is in dispute. \n\n"
-                + " Hoping to resolve the matter with a blockade of deadly battleships, "
-                + " the greedy Trade Federation has stopped all shipping to the small planet of Naboo. \n\n"
-                + " While the congress of the Republic endlessly debates this alarming chain of events,"
-                + " the Supreme Chancellor has secretly dispatched two Jedi Knights,"
-                + " the guardians of peace and justice in the galaxy, to settle the conflict...", new Vector2f(), 1f, 0.5f, false);
-        GUI.addItem("aids", new GUIText(text, font, new Vector2f(0f,0)));
-        
-        final Text updatetext = new Text(shell, SWT.SHADOW_IN);
         tree.addListener(SWT.Selection, new Listener() {
             public void handleEvent(Event event) {
                 if (event.detail == SWT.CHECK) {
@@ -148,19 +169,104 @@ public class WorldEditor extends GGApplication{
             }
         });
         
-        //shell.setSize(800, 600);
-        //shell.setMaximized(true);
-        shell.open();
+        ScrolledComposite addregion = new ScrolledComposite(shell, SWT.BORDER);
+        addregion.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
         
+        ScrolledComposite console = new ScrolledComposite(shell, SWT.BORDER | SWT.V_SCROLL);
+        console.setLayout(new FillLayout());
+        console.setExpandHorizontal(true);
+        console.setExpandVertical(true);
+        console.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false, 4, 1));
+        console.setMinHeight(120);
+        console.layout();
+        
+        Text consoletext = new Text(console, SWT.READ_ONLY | SWT.MULTI);
+        
+        console.setContent(consoletext);
+
+        
+        PrintStream oldout = System.out;
+        OutputStream out = new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                if (consoletext.isDisposed()) return;
+                consoletext.append(String.valueOf((char) b));
+                consoletext.pack();
+                oldout.write(b);
+            }
+        };
+        
+        System.setOut(new PrintStream(out));
+    }
+    
+    @Override
+    public void setup() {
+        initSWT2();
+        GLCanvas localcanvas = ((GGCanvas)OpenGG.getWindow()).getCanvas();
+
+        localcanvas.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 2, 2));
+        
+        WorldEngine.getCurrent().setEnabled(false);
+        GGFont font = Resource.getFont("test", "test.png");
+        com.opengg.core.render.Text text = new com.opengg.core.render.Text("Turmoil has engulfed the Galactic Republic. The taxation of trade routes to outlying star systems is in dispute. \n\n"
+                + " Hoping to resolve the matter with a blockade of deadly battleships, "
+                + " the greedy Trade Federation has stopped all shipping to the small planet of Naboo. \n\n"
+                + " While the congress of the Republic endlessly debates this alarming chain of events,"
+                + " the Supreme Chancellor has secretly dispatched two Jedi Knights,"
+                + " the guardians of peace and justice in the galaxy, to settle the conflict...", new Vector2f(), 1f, 0.5f, false);
+        GUI.addItem("aids", new GUIText(text, font, new Vector2f(0f,0)));
+        
+        ViewModelComponentRegistry.createRegisters();
+        
+        BindController.addBind(ControlType.KEYBOARD, "forward", KEY_W);
+        BindController.addBind(ControlType.KEYBOARD, "backward", KEY_S);
+        BindController.addBind(ControlType.KEYBOARD, "left", KEY_A);
+        BindController.addBind(ControlType.KEYBOARD, "right", KEY_D);
+        BindController.addBind(ControlType.KEYBOARD, "up", KEY_SPACE);
+        BindController.addBind(ControlType.KEYBOARD, "down", KEY_LEFT_SHIFT);
+        BindController.addBind(ControlType.KEYBOARD, "lookright", KEY_RIGHT);
+        BindController.addBind(ControlType.KEYBOARD, "lookleft", KEY_LEFT);
+        BindController.addBind(ControlType.KEYBOARD, "lookup", KEY_UP);
+        BindController.addBind(ControlType.KEYBOARD, "lookdown", KEY_DOWN);
+        
+        RenderEngine.setSkybox(new Skybox(Texture.getCubemap(
+                Resource.getTexturePath("skybox\\majestic_ft.png"),
+                Resource.getTexturePath("skybox\\majestic_bk.png"),
+                Resource.getTexturePath("skybox\\majestic_up.png"),
+                Resource.getTexturePath("skybox\\majestic_dn.png"),
+                Resource.getTexturePath("skybox\\majestic_rt.png"),
+                Resource.getTexturePath("skybox\\majestic_lf.png")), 1500f));
+        
+        WorldObject w = new WorldObject();
+        w.attach(new WorldObject());
+        WorldEngine.getCurrent().attach(w);
+        WorldEngine.getCurrent().attach(new WorldObject());
+        WorldEngine.getCurrent().attach(new WorldObject());
+        World world = WorldEngine.getCurrent();
+        tree.removeAll();
+        for(Component compo : world.getChildren()){
+            TreeItem item = new TreeItem(tree, SWT.NONE);
+            item.setText(compo.getClass().getSimpleName() + ": " + compo.getName());
+            mystery6(compo, item);
+        }
+        shell.open();
     }
 
     @Override
     public void render() {
-        
+        ShaderController.setPerspective(90, OpenGG.getWindow().getRatio(), 0.2f, 3000f);
     }
 
     @Override
     public void update() {
         
+    }
+    
+    public void mystery6(Component comp, TreeItem treepart){
+        for(Component compo : comp.getChildren()){
+            TreeItem item = new TreeItem(treepart, SWT.NONE);
+            item.setText(compo.getClass().getSimpleName() + ": " + compo.getName());
+            mystery6(compo, item);
+        }
     }
 }
