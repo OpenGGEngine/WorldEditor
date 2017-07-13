@@ -8,10 +8,12 @@ package worldeditor;
 import com.opengg.core.math.Vector2f;
 import com.opengg.core.math.Vector3f;
 import com.opengg.core.math.Vector4f;
-import com.opengg.core.world.components.viewmodel.ViewModelElement;
+import com.opengg.core.world.components.viewmodel.Element;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.ModifyEvent;
+import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.GridData;
@@ -28,14 +30,14 @@ import static worldeditor.WorldEditor.addIntegerListener;
  * @author Javier
  */
 public class GGElement {
-    public ViewModelElement element;
+    public Element element;
     public GGView view;
     public List<Control> all = new ArrayList<>();
     
-    public GGElement(Composite editarea, ViewModelElement element, GGView view){
+    public GGElement(Composite editarea, Element element, GGView view){
         this.view = view;
         this.element = element;
-        if(element.type == ViewModelElement.VECTOR4F){
+        if(element.type == Element.VECTOR4F){
             Label label = new Label(editarea, SWT.NULL);
             label.setText(element.name);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
@@ -60,11 +62,20 @@ public class GGElement {
             v4.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             addDecimalListener(v4);
             all.add(v4);
+            
+            ModifyListener mf = (ModifyEvent e) -> {
+                try{
+                    Vector4f nvector = new Vector4f(Float.parseFloat(v1.getText()), Float.parseFloat(v2.getText()), Float.parseFloat(v3.getText()), Float.parseFloat(v4.getText()));
+                    element.value = nvector;
+                    if(view != null && element.autoupdate) fireEvent(element);
+                }catch(Exception ex){}
+            };
+            v1.addModifyListener(mf);
+            v2.addModifyListener(mf);
+            v3.addModifyListener(mf);
+            v4.addModifyListener(mf);
 
-            Label fillspace = new Label(editarea, SWT.NULL);
-            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-
-        }else if(element.type == ViewModelElement.VECTOR3F){
+        }else if(element.type == Element.VECTOR3F){
             Label label = new Label(editarea, SWT.NULL);
             label.setText(element.name);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
@@ -85,9 +96,20 @@ public class GGElement {
             addDecimalListener(v3);
             all.add(v3);
 
+            ModifyListener mf = (ModifyEvent e) -> {
+                try{
+                    Vector3f nvector = new Vector3f(Float.parseFloat(v1.getText()), Float.parseFloat(v2.getText()), Float.parseFloat(v3.getText()));
+                    element.value = nvector;
+                    if(view != null && element.autoupdate) fireEvent(element);
+                }catch(Exception ex){}
+            };
+            v1.addModifyListener(mf);
+            v2.addModifyListener(mf);
+            v3.addModifyListener(mf);
+            
             Label fillspace = new Label(editarea, SWT.NULL);
             fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == ViewModelElement.VECTOR2F){
+        }else if(element.type == Element.VECTOR2F){
             Label label = new Label(editarea, SWT.NULL);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(label);
@@ -101,13 +123,20 @@ public class GGElement {
             v2.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             addDecimalListener(v2);
             all.add(v2);
+            
+            ModifyListener mf = (ModifyEvent e) -> {
+                try{
+                    Vector2f nvector = new Vector2f(Float.parseFloat(v1.getText()), Float.parseFloat(v2.getText()));
+                    element.value = nvector;
+                    if(view != null && element.autoupdate) fireEvent(element);
+                }catch(Exception ex){}
+            };
+            v1.addModifyListener(mf);
+            v2.addModifyListener(mf);
 
             Label fillspace = new Label(editarea, SWT.NULL);
-            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-
-            Label fillspace2 = new Label(editarea, SWT.NULL);
-            fillspace2.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == ViewModelElement.FLOAT){
+            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 2, 1));
+        }else if(element.type == Element.FLOAT){
             Label label = new Label(editarea, SWT.NULL);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(label);
@@ -116,16 +145,17 @@ public class GGElement {
             v1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             addDecimalListener(v1);
             all.add(v1);
+            v1.addModifyListener((e) -> {
+                try{
+                    element.value = Float.parseFloat(v1.getText());
+                    if(view != null && element.autoupdate) fireEvent(element);
+                }catch(Exception ex){}
+            });
+            
 
             Label fillspace = new Label(editarea, SWT.NULL);
-            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-
-            Label fillspace2 = new Label(editarea, SWT.NULL);
-            fillspace2.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-
-            Label fillspace3 = new Label(editarea, SWT.NULL);
-            fillspace3.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == ViewModelElement.INTEGER){
+            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
+        }else if(element.type == Element.INTEGER){
             Label label = new Label(editarea, SWT.NULL);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(label);
@@ -134,7 +164,13 @@ public class GGElement {
             v1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             addIntegerListener(v1);
             all.add(v1);
-
+            v1.addModifyListener((e) -> {
+                try{
+                    element.value = Integer.parseInt(v1.getText());
+                    if(view != null && element.autoupdate) fireEvent(element);
+                }catch(Exception ex){}    
+            });
+            
             Label fillspace = new Label(editarea, SWT.NULL);
             fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
 
@@ -143,7 +179,7 @@ public class GGElement {
 
             Label fillspace3 = new Label(editarea, SWT.NULL);
             fillspace3.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == ViewModelElement.STRING){
+        }else if(element.type == Element.STRING){
             Label label = new Label(editarea, SWT.NULL);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(label);
@@ -151,10 +187,15 @@ public class GGElement {
             Text v1 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
             v1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
             all.add(v1);
+            
+            v1.addModifyListener((e) -> {
+                element.value = v1.getText();
+                if(view != null && element.autoupdate) fireEvent(element);
+            });
 
             Label fillspace = new Label(editarea, SWT.NULL);
             fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == ViewModelElement.BOOLEAN){
+        }else if(element.type == Element.BOOLEAN){
             Label label = new Label(editarea, SWT.NULL);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(label);
@@ -163,15 +204,13 @@ public class GGElement {
             button.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(button);
             button.addSelectionListener(new SelectionListener(){
-
                 @Override
                 public void widgetSelected(SelectionEvent e) {
                     element.value = button.getSelection();
-                    if(view != null) view.cvm.fireEvent(element);
+                    if(view != null && element.autoupdate) fireEvent(element);
                 }
 
-                @Override
-                public void widgetDefaultSelected(SelectionEvent e) {}
+                @Override public void widgetDefaultSelected(SelectionEvent e) {}
             });
 
             Label fillspace = new Label(editarea, SWT.NULL);
@@ -188,38 +227,57 @@ public class GGElement {
             Label fillspace = new Label(editarea, SWT.NULL);
             fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
         }else{
-            Label placeholder = new Label(editarea, SWT.NULL);
-            placeholder.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
+            Button button = new Button(editarea, SWT.PUSH);
+            button.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
+            button.setText("Enter");
+            button.addSelectionListener(new SelectionListener(){
+                @Override
+                public void widgetSelected(SelectionEvent event) {
+                    if(view != null) fireEvent(element);
+                }
+
+                @Override
+                public void widgetDefaultSelected(SelectionEvent event) {}
+            });
         }
+        
+        update(true);
     }
     
     public void update(){
+        update(false);
+    }
+    
+    public void update(boolean force){
         ((Label)all.get(0)).setText(element.name);
-        if(element.type == ViewModelElement.VECTOR4F){
+        
+        if(!element.forceupdate && !force) return;
+        
+        if(element.type == Element.VECTOR4F){
             Vector4f data = (Vector4f)element.value;
             ((Text)all.get(1)).setText(Float.toString(data.x));
             ((Text)all.get(2)).setText(Float.toString(data.y));
             ((Text)all.get(3)).setText(Float.toString(data.z));
             ((Text)all.get(4)).setText(Float.toString(data.w));
-        }else if(element.type == ViewModelElement.VECTOR3F){
+        }else if(element.type == Element.VECTOR3F){
             Vector3f data = (Vector3f)element.value;
             ((Text)all.get(1)).setText(Float.toString(data.x));
             ((Text)all.get(2)).setText(Float.toString(data.y));
             ((Text)all.get(3)).setText(Float.toString(data.z));
-        }else if(element.type == ViewModelElement.VECTOR2F){
+        }else if(element.type == Element.VECTOR2F){
             Vector2f data = (Vector2f)element.value;
             ((Text)all.get(1)).setText(Float.toString(data.x));
             ((Text)all.get(2)).setText(Float.toString(data.y));
-        }else if(element.type == ViewModelElement.FLOAT){
+        }else if(element.type == Element.FLOAT){
             float data = (Float)element.value;
             ((Text)all.get(1)).setText(Float.toString(data));
-        }else if(element.type == ViewModelElement.INTEGER){
+        }else if(element.type == Element.INTEGER){
             int data = (Integer)element.value;
             ((Text)all.get(1)).setText(Integer.toString(data));
-        }else if(element.type == ViewModelElement.STRING){
+        }else if(element.type == Element.STRING){
             String data = (String)element.value;
             ((Text)all.get(1)).setText(data);
-        }else if(element.type == ViewModelElement.BOOLEAN){
+        }else if(element.type == Element.BOOLEAN){
             boolean data = (Boolean)element.value;
             ((Button)all.get(1)).setText(Boolean.toString(data));
             ((Button)all.get(1)).setSelection(data);
@@ -230,5 +288,10 @@ public class GGElement {
         for(Control c : all){
             c.dispose();
         }
+    }
+    
+    public void fireEvent(Element element){
+        view.cvm.fireEvent(element);
+        view.cvm.updateLocal();     
     }
 }

@@ -27,10 +27,10 @@ import com.opengg.core.world.Skybox;
 import com.opengg.core.world.World;
 import com.opengg.core.world.components.Component;
 import com.opengg.core.world.components.WorldObject;
-import com.opengg.core.world.components.viewmodel.ComponentViewModel;
+import com.opengg.core.world.components.viewmodel.ViewModel;
 import com.opengg.core.world.components.viewmodel.ViewModelComponentRegisterInfoContainer;
 import com.opengg.core.world.components.viewmodel.ViewModelComponentRegistry;
-import com.opengg.core.world.components.viewmodel.ViewModelInitializer;
+import com.opengg.core.world.components.viewmodel.Initializer;
 import com.opengg.module.swt.SWTExtension;
 import com.opengg.module.swt.window.GGCanvas;
 import com.opengg.module.swt.window.GLCanvas;
@@ -39,12 +39,25 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.ScrolledComposite;
+import org.eclipse.swt.dnd.DND;
+import org.eclipse.swt.dnd.DragSource;
+import org.eclipse.swt.dnd.DragSourceEvent;
+import org.eclipse.swt.dnd.DragSourceListener;
+import org.eclipse.swt.dnd.DropTarget;
+import org.eclipse.swt.dnd.DropTargetAdapter;
+import org.eclipse.swt.dnd.DropTargetEvent;
+import org.eclipse.swt.dnd.TextTransfer;
+import org.eclipse.swt.dnd.Transfer;
+import org.eclipse.swt.events.DisposeEvent;
+import org.eclipse.swt.events.DisposeListener;
 import org.eclipse.swt.events.KeyAdapter;
 import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.events.VerifyEvent;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -69,6 +82,7 @@ public class WorldEditor extends GGApplication{
     private static Composite editarea;
     private static Composite addregion;
     private static boolean refresh;
+    private static Composite treearea;
 
     public static void main(String[] args) {
         initSWT();
@@ -128,25 +142,13 @@ public class WorldEditor extends GGApplication{
 
         shell.setMenuBar(menuBar);
         
-        Composite c2 = new Composite(shell,SWT.BORDER);
+        treearea = new Composite(shell,SWT.BORDER);
         GridData treedata = new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1);
-        c2.setLayoutData(treedata);
-        c2.setLayout(new FillLayout());
+        treearea.setLayoutData(treedata);
+        treearea.setLayout(new FillLayout());
 
-        tree = new Tree(c2, SWT.V_SCROLL);
-        tree.addSelectionListener(new SelectionListener(){
-            @Override
-            public void widgetSelected(SelectionEvent event) {
-                useTreeItem((TreeItem)event.item);
-            }
-
-            @Override
-            public void widgetDefaultSelected(SelectionEvent event) {
-                useTreeItem((TreeItem)event.item);
-            }
-        });
-        tree.pack();
-
+        setupTree();
+        
         shell.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -271,8 +273,9 @@ public class WorldEditor extends GGApplication{
         i++;
         if(i == 15){
             i = 0;
-            if(currentview != null && currentview.complete)
+            if(currentview != null && currentview.complete){
                 currentview.update();
+            }
         } 
         
         if(refresh){
@@ -299,16 +302,16 @@ public class WorldEditor extends GGApplication{
         }
         
         try {
-            ComponentViewModel cvm = (ComponentViewModel) vmclass.newInstance();
+            ViewModel cvm = (ViewModel) vmclass.newInstance();
             cvm.setComponent(component);
             useViewModel(cvm);
             
         } catch (InstantiationException | IllegalAccessException ex) {
-            GGConsole.error("Failed to create instance of a ComponentViewModel for " + component.getName()+ ", is there a default constructor?");
+            GGConsole.error("Failed to create instance of a ComponentViewModel for " + component.getName() + ", is there a default constructor?");
         }
     }
     
-    public static void useViewModel(ComponentViewModel cvm){
+    public static void useViewModel(ViewModel cvm){
         for (Control control : editarea.getChildren()) {
             control.dispose();
         }
@@ -372,8 +375,8 @@ public class WorldEditor extends GGApplication{
                 Class vmclazz = ViewModelComponentRegistry.findViewModel(clazz);
                 
                 try {
-                    ComponentViewModel cvm = (ComponentViewModel) vmclazz.newInstance();
-                    ViewModelInitializer vmi = cvm.getInitializer();
+                    ViewModel cvm = (ViewModel) vmclazz.newInstance();
+                    Initializer vmi = cvm.getInitializer();
                     if(vmi.elements.isEmpty()){
                         Component newcomponent = cvm.getFromInitializer(vmi);
                         WorldEngine.getCurrent().attach(newcomponent);
@@ -381,9 +384,18 @@ public class WorldEditor extends GGApplication{
                         cvm.setComponent(newcomponent);
                         refreshComponentList();
                         useTreeItem(tree.getItems()[tree.getItems().length-1]);
+                        tree.setSelection(tree.getItems()[tree.getItems().length-1]);
+                    }else{
+                        NewComponentShell ncs = new NewComponentShell(vmi, shell, cvm);
+                        ncs.nshell.addDisposeListener(new DisposeListener(){
+                            @Override
+                            public void widgetDisposed(DisposeEvent e) {
+                                shell.setEnabled(true);
+                            }
+                        });
+                        
+                        shell.setEnabled(false);
                     }
-                    
-
                 } catch (InstantiationException | IllegalAccessException ex) {
                     GGConsole.error("Failed to create instance of a ComponentViewModel for " + clazz.getName()+ ", is there a default constructor?");
                 }
@@ -430,5 +442,110 @@ public class WorldEditor extends GGApplication{
         for (Control control : region.getChildren()) {
             control.dispose();
         }
+    }
+    
+    public static void createComponent(Initializer vmi, ViewModel cvm){
+        Component ncomp = cvm.getFromInitializer(vmi);
+        WorldEngine.getCurrent().attach(ncomp);
+        
+        refreshComponentList();
+    }
+    
+    public static void setupTree(){
+        tree = new Tree(treearea, SWT.V_SCROLL);
+        TreeItem[] dragitem = new TreeItem[1];
+        
+        DragSource source = new DragSource(tree, DND.DROP_MOVE | DND.DROP_COPY | DND.DROP_LINK);       
+        source.setTransfer(new Transfer[] { TextTransfer.getInstance() });
+        source.addDragListener(new DragSourceListener(){
+
+            @Override
+            public void dragStart(DragSourceEvent event) {
+                TreeItem[] selection = tree.getSelection();
+                if (selection.length > 0 && selection[0].getItemCount() == 0) {
+                    event.doit = true;
+                    dragitem[0] = selection[0];
+                } else {
+                    event.doit = false;
+                }
+            }
+
+            @Override
+            public void dragSetData(DragSourceEvent event) {
+                event.data = dragitem[0].getText();
+            }
+
+            @Override
+            public void dragFinished(DragSourceEvent event) {
+                if (event.detail == DND.DROP_MOVE)
+                    dragitem[0].dispose();
+                dragitem[0] = null;
+            }
+        
+        });
+        
+        DropTarget target = new DropTarget(tree, DND.DROP_MOVE | DND.DROP_COPY | DND.DROP_LINK);
+        target.setTransfer(new Transfer[] { TextTransfer.getInstance() });
+        
+        target.addDropListener(new DropTargetAdapter(){
+            public void dragOver(DropTargetEvent event) {
+                event.feedback = DND.FEEDBACK_EXPAND | DND.FEEDBACK_SCROLL;
+                if (event.item != null) {
+                    TreeItem item = (TreeItem) event.item;
+                    Point pt = display.map(null, tree, event.x, event.y);
+                    Rectangle bounds = item.getBounds();
+                    if (pt.y < bounds.y + bounds.height / 3) {
+                        event.feedback |= DND.FEEDBACK_INSERT_BEFORE;
+                    } else if (pt.y > bounds.y + 2 * bounds.height / 3) {
+                        event.feedback |= DND.FEEDBACK_INSERT_AFTER;
+                    } else {
+                        event.feedback |= DND.FEEDBACK_SELECT;
+                    }
+                }
+            }
+
+            public void drop(DropTargetEvent event) {
+                if (event.data == null) {
+                    event.detail = DND.DROP_NONE;
+                    return;
+                }
+                String text = (String) event.data;
+                if (event.item == null) {
+                    TreeItem item = new TreeItem(tree, SWT.NONE);
+                    item.setText(text);
+                    
+                    int id = Integer.parseInt(text.substring(text.lastIndexOf(":") + 2));
+                    Component nchild = WorldEngine.getCurrent().find(id);
+                    
+                    WorldEngine.getCurrent().attach(nchild);
+                } else {
+                    TreeItem item = (TreeItem) event.item;
+                    String ntext = item.getText();
+                    
+                    int id = Integer.parseInt(ntext.substring(ntext.lastIndexOf(":") + 2));
+                    Component parent = WorldEngine.getCurrent().find(id);
+                    
+                    int id2 = Integer.parseInt(text.substring(text.lastIndexOf(":") + 2));
+                    Component child = WorldEngine.getCurrent().find(id2);
+                    
+                    parent.attach(child);
+                    
+                    refreshComponentList();
+                }
+            }
+        });
+        
+        tree.addSelectionListener(new SelectionListener(){
+            @Override
+            public void widgetSelected(SelectionEvent event) {
+                useTreeItem((TreeItem)event.item);
+            }
+
+            @Override
+            public void widgetDefaultSelected(SelectionEvent event) {
+                useTreeItem((TreeItem)event.item);
+            }
+        });
+        tree.pack();
     }
 }

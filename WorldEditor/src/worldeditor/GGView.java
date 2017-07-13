@@ -6,8 +6,8 @@
 package worldeditor;
 
 import com.opengg.core.engine.WorldEngine;
-import com.opengg.core.world.components.viewmodel.ComponentViewModel;
-import com.opengg.core.world.components.viewmodel.ViewModelElement;
+import com.opengg.core.world.components.viewmodel.ViewModel;
+import com.opengg.core.world.components.viewmodel.Element;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.SWT;
@@ -22,13 +22,13 @@ import org.eclipse.swt.widgets.Composite;
  * @author Javier
  */
 public class GGView {
-    public ComponentViewModel cvm;
+    public ViewModel cvm;
     boolean complete = false;
     List<GGElement> elements = new ArrayList<>();
     
-    public GGView(Composite editarea, ComponentViewModel cvm){
+    public GGView(Composite editarea, ViewModel cvm){
         this.cvm = cvm;
-        for(ViewModelElement element : cvm.getElements()){
+        for(Element element : cvm.getElements()){
             elements.add(new GGElement(editarea, element, this));
         }
         
