@@ -38,7 +38,10 @@ public class GGView {
             @Override
             public void widgetSelected(SelectionEvent event) {
                 WorldEngine.markForRemoval(cvm.getComponent());
-                WorldEditor.markForRefresh();
+                WorldEngine.removeMarked();
+                editarea.getDisplay().asyncExec(() -> {
+                    WorldEditor.refreshComponentList();
+                });
             }
 
             @Override

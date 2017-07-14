@@ -5,9 +5,11 @@
  */
 package worldeditor;
 
+import com.opengg.core.engine.OpenGG;
 import com.opengg.core.math.Vector2f;
 import com.opengg.core.math.Vector3f;
 import com.opengg.core.math.Vector4f;
+import com.opengg.core.render.texture.TextureData;
 import com.opengg.core.world.components.viewmodel.Element;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,10 +35,12 @@ public class GGElement {
     public Element element;
     public GGView view;
     public List<Control> all = new ArrayList<>();
+    public Composite editarea;
     
     public GGElement(Composite editarea, Element element, GGView view){
         this.view = view;
         this.element = element;
+        this.editarea = editarea;
         if(element.type == Element.VECTOR4F){
             Label label = new Label(editarea, SWT.NULL);
             label.setText(element.name);
@@ -62,6 +66,8 @@ public class GGElement {
             v4.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             addDecimalListener(v4);
             all.add(v4);
+            
+            update(true);
             
             ModifyListener mf = (ModifyEvent e) -> {
                 try{
@@ -96,6 +102,8 @@ public class GGElement {
             addDecimalListener(v3);
             all.add(v3);
 
+            update(true);
+            
             ModifyListener mf = (ModifyEvent e) -> {
                 try{
                     Vector3f nvector = new Vector3f(Float.parseFloat(v1.getText()), Float.parseFloat(v2.getText()), Float.parseFloat(v3.getText()));
@@ -124,6 +132,8 @@ public class GGElement {
             addDecimalListener(v2);
             all.add(v2);
             
+            update(true);
+            
             ModifyListener mf = (ModifyEvent e) -> {
                 try{
                     Vector2f nvector = new Vector2f(Float.parseFloat(v1.getText()), Float.parseFloat(v2.getText()));
@@ -145,6 +155,9 @@ public class GGElement {
             v1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             addDecimalListener(v1);
             all.add(v1);
+            
+            update(true);
+            
             v1.addModifyListener((e) -> {
                 try{
                     element.value = Float.parseFloat(v1.getText());
@@ -164,6 +177,9 @@ public class GGElement {
             v1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             addIntegerListener(v1);
             all.add(v1);
+            
+            update(true);
+            
             v1.addModifyListener((e) -> {
                 try{
                     element.value = Integer.parseInt(v1.getText());
@@ -188,6 +204,8 @@ public class GGElement {
             v1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
             all.add(v1);
             
+            update(true);
+            
             v1.addModifyListener((e) -> {
                 element.value = v1.getText();
                 if(view != null && element.autoupdate) fireEvent(element);
@@ -203,11 +221,40 @@ public class GGElement {
             Button button = new Button(editarea, SWT.TOGGLE);
             button.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(button);
+            
+            update(true);
+            
             button.addSelectionListener(new SelectionListener(){
                 @Override
                 public void widgetSelected(SelectionEvent e) {
                     element.value = button.getSelection();
+                    if(view != null && element.autoupdate) fireEvent(element);      
+                }
+
+                @Override public void widgetDefaultSelected(SelectionEvent e) {}
+            });
+
+            Label fillspace = new Label(editarea, SWT.NULL);
+            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
+        }else if(element.type == Element.TEXTURE){
+            Label label = new Label(editarea, SWT.NULL);
+            label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
+            all.add(label);
+
+            Button button = new Button(editarea, SWT.PUSH);
+            button.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
+            all.add(button);
+            
+            update(true);
+            
+            button.addSelectionListener(new SelectionListener(){
+                @Override
+                public void widgetSelected(SelectionEvent e) {
+                    TextureData data = TextureSelectionShell.getData(editarea.getShell());
+                    if(data == null) return;
+                    element.value = data;
                     if(view != null && element.autoupdate) fireEvent(element);
+                    update(true);
                 }
 
                 @Override public void widgetDefaultSelected(SelectionEvent e) {}
@@ -215,12 +262,6 @@ public class GGElement {
 
             Label fillspace = new Label(editarea, SWT.NULL);
             fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-
-            Label fillspace2 = new Label(editarea, SWT.NULL);
-            fillspace2.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-
-            Label fillspace3 = new Label(editarea, SWT.NULL);
-            fillspace3.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
         }
 
         if(element.autoupdate){
@@ -249,8 +290,13 @@ public class GGElement {
     }
     
     public void update(boolean force){
-        ((Label)all.get(0)).setText(element.name);
-        
+        try{
+            ((Label)all.get(0)).setText(element.name);
+        }catch(Exception e){
+            WorldEditor.clearArea(editarea);
+            WorldEditor.setView(null);
+            return; 
+        }
         if(!element.forceupdate && !force) return;
         
         if(element.type == Element.VECTOR4F){
@@ -281,6 +327,9 @@ public class GGElement {
             boolean data = (Boolean)element.value;
             ((Button)all.get(1)).setText(Boolean.toString(data));
             ((Button)all.get(1)).setSelection(data);
+        }else if(element.type == Element.TEXTURE){
+            TextureData data = (TextureData)element.value;
+            ((Button)all.get(1)).setText(data.source);
         }
     }
     
@@ -291,7 +340,9 @@ public class GGElement {
     }
     
     public void fireEvent(Element element){
-        view.cvm.fireEvent(element);
-        view.cvm.updateLocal();     
+        OpenGG.addExecutable(() -> {
+            view.cvm.fireEvent(element);
+            view.cvm.updateLocal();  
+        });
     }
 }

@@ -11,7 +11,6 @@ import com.opengg.core.world.components.viewmodel.Initializer;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.custom.ScrolledComposite;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.FillLayout;
@@ -42,7 +41,7 @@ public class NewComponentShell {
         Composite content = new Composite(total, SWT.NONE);
         content.setLayout(new GridLayout(6, false));
         content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 3));
-        
+
         for(Element element : initializer.elements){
             element.autoupdate = true;
             elements.add(new GGElement(content, element, null));

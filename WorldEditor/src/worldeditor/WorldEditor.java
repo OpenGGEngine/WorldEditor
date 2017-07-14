@@ -14,19 +14,20 @@ import com.opengg.core.engine.RenderEngine;
 import com.opengg.core.engine.Resource;
 import com.opengg.core.engine.WorldEngine;
 import com.opengg.core.extension.ExtensionManager;
-import com.opengg.core.gui.GUI;
-import com.opengg.core.gui.GUIText;
 import com.opengg.core.io.ControlType;
 import static com.opengg.core.io.input.keyboard.Key.*;
-import com.opengg.core.math.Vector2f;
+import com.opengg.core.math.Quaternionf;
+import com.opengg.core.math.Vector3f;
 import com.opengg.core.render.shader.ShaderController;
 import com.opengg.core.render.texture.Texture;
-import com.opengg.core.render.texture.text.GGFont;
 import com.opengg.core.render.window.WindowInfo;
+import com.opengg.core.world.Action;
+import com.opengg.core.world.ActionType;
+import com.opengg.core.world.Actionable;
+import com.opengg.core.world.Camera;
 import com.opengg.core.world.Skybox;
 import com.opengg.core.world.World;
 import com.opengg.core.world.components.Component;
-import com.opengg.core.world.components.WorldObject;
 import com.opengg.core.world.components.viewmodel.ViewModel;
 import com.opengg.core.world.components.viewmodel.ViewModelComponentRegisterInfoContainer;
 import com.opengg.core.world.components.viewmodel.ViewModelComponentRegistry;
@@ -34,9 +35,6 @@ import com.opengg.core.world.components.viewmodel.Initializer;
 import com.opengg.module.swt.SWTExtension;
 import com.opengg.module.swt.window.GGCanvas;
 import com.opengg.module.swt.window.GLCanvas;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.ScrolledComposite;
 import org.eclipse.swt.dnd.DND;
@@ -50,12 +48,11 @@ import org.eclipse.swt.dnd.TextTransfer;
 import org.eclipse.swt.dnd.Transfer;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.events.DisposeListener;
-import org.eclipse.swt.events.KeyAdapter;
-import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.events.VerifyEvent;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FillLayout;
@@ -63,6 +60,7 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.DirectoryDialog;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.FileDialog;
@@ -74,7 +72,7 @@ import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 
-public class WorldEditor extends GGApplication{
+public class WorldEditor extends GGApplication implements Actionable{
     private static Display display;
     private static Shell shell;
     private static Tree tree;
@@ -83,9 +81,23 @@ public class WorldEditor extends GGApplication{
     private static Composite addregion;
     private static boolean refresh;
     private static Composite treearea;
+    private static Vector3f control = new Vector3f();
+    private static Vector3f controlrot = new Vector3f();
+    private static Vector3f currot = new Vector3f();
+    private static float rotspeed = 30;
+    private Camera cam;
 
     public static void main(String[] args) {
-        initSWT();
+        Thread ui = new Thread(() -> {
+            initSWT();
+        });
+        ui.setName("UI Thread");
+        ui.start();
+        
+        try {
+            Thread.sleep(150);
+        } catch (InterruptedException ex) {}
+        
         
         ExtensionManager.addExtension(new SWTExtension(shell, display));
         
@@ -104,8 +116,12 @@ public class WorldEditor extends GGApplication{
         display = new Display();
         shell = new Shell(display);
 
+        Image image = new Image(display, "resources\\tex\\emak.png");
+        shell.setImage(image);
+        
         GridLayout layout = new GridLayout();
         layout.numColumns = 4;
+        layout.makeColumnsEqualWidth = true;
 
         shell.setLayout(layout);
         shell.setText("World Editor");
@@ -120,12 +136,26 @@ public class WorldEditor extends GGApplication{
         MenuItem cascadeEditMenu = new MenuItem(menuBar, SWT.CASCADE);
         cascadeEditMenu.setText("&Edit");
 
+        MenuItem gamepath = new MenuItem(fileMenu, SWT.CASCADE);
+        gamepath.setText("Set root game path");
+        gamepath.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                DirectoryDialog dialog = new DirectoryDialog(shell, SWT.OPEN);
+                dialog.setFilterPath(Resource.getLocal(""));
+                String npath = dialog.open();
+                Resource.setDefaultPath(npath);
+                shell.setText("World Editor: " + npath);
+            }
+        });
+        
         MenuItem jarload = new MenuItem(fileMenu, SWT.CASCADE);
         jarload.setText("Load game JAR");
         jarload.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {
                 FileDialog dialog = new FileDialog(shell, SWT.OPEN);
+                dialog.setText("Game JAR file");
                 dialog.setFilterExtensions(new String[]{"*.jar"});
                 dialog.setFilterPath(Resource.getLocal(""));
                 String result = dialog.open();
@@ -149,15 +179,6 @@ public class WorldEditor extends GGApplication{
 
         setupTree();
         
-        shell.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                if (e.stateMask == SWT.ALT && (e.keyCode == SWT.KEYPAD_CR || e.keyCode == SWT.CR)) {
-                    shell.setFullScreen(!shell.getFullScreen());
-                }
-            }
-        });
-        
         int dw = shell.getSize().x - shell.getClientArea().width;
         int dh = shell.getSize().y - shell.getClientArea().height;
         shell.setMinimumSize(minClientWidth + dw, minClientHeight + dh);
@@ -173,6 +194,13 @@ public class WorldEditor extends GGApplication{
                     break;
             }
         });
+        
+        while(!shell.isDisposed()){
+            if (!display.readAndDispatch()) {
+                display.sleep();
+            }
+        }
+        close();
     }
     
     public static void initSWT2(){
@@ -193,10 +221,8 @@ public class WorldEditor extends GGApplication{
         console.layout();
         
         Text consoletext = new Text(console, SWT.READ_ONLY | SWT.MULTI);
-        
+        /*
         console.setContent(consoletext);
-
-        
         PrintStream oldout = System.out;    
         OutputStream out = new OutputStream() {
             @Override
@@ -209,37 +235,36 @@ public class WorldEditor extends GGApplication{
         };
         
         System.setOut(new PrintStream(out));
-    }
-    private WorldObject w;
-    
-    @Override
-    public void setup() {
-        initSWT2();
+        */
         GLCanvas localcanvas = ((GGCanvas)OpenGG.getWindow()).getCanvas();
         localcanvas.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 2, 2));
-        
-        WorldEngine.getCurrent().setEnabled(false);
-        GGFont font = Resource.getFont("test", "test.png");
-        com.opengg.core.render.Text text = new com.opengg.core.render.Text("Turmoil has engulfed the Galactic Republic. The taxation of trade routes to outlying star systems is in dispute. \n\n"
-                + " Hoping to resolve the matter with a blockade of deadly battleships, "
-                + " the greedy Trade Federation has stopped all shipping to the small planet of Naboo. \n\n"
-                + " While the congress of the Republic endlessly debates this alarming chain of events,"
-                + " the Supreme Chancellor has secretly dispatched two Jedi Knights,"
-                + " the guardians of peace and justice in the galaxy, to settle the conflict...", new Vector2f(), 1f, 0.5f, false);
-        GUI.addItem("aids", new GUIText(text, font, new Vector2f(0f,0)));
-        
+    }
+    
+    
+    @Override
+    public void setup(){
         ViewModelComponentRegistry.createRegisters();
+        WorldEngine.getCurrent().setEnabled(false);
+        
+        display.asyncExec(() -> {
+            initSWT2();
+            refreshComponentList();
+        
+            updateAddRegion();
+            shell.open();
+        });       
         
         BindController.addBind(ControlType.KEYBOARD, "forward", KEY_W);
         BindController.addBind(ControlType.KEYBOARD, "backward", KEY_S);
         BindController.addBind(ControlType.KEYBOARD, "left", KEY_A);
         BindController.addBind(ControlType.KEYBOARD, "right", KEY_D);
         BindController.addBind(ControlType.KEYBOARD, "up", KEY_SPACE);
-        BindController.addBind(ControlType.KEYBOARD, "down", KEY_LEFT_SHIFT);
-        BindController.addBind(ControlType.KEYBOARD, "lookright", KEY_RIGHT);
-        BindController.addBind(ControlType.KEYBOARD, "lookleft", KEY_LEFT);
-        BindController.addBind(ControlType.KEYBOARD, "lookup", KEY_UP);
-        BindController.addBind(ControlType.KEYBOARD, "lookdown", KEY_DOWN);
+        BindController.addBind(ControlType.KEYBOARD, "down", KEY_Z);
+        BindController.addBind(ControlType.KEYBOARD, "lookright", KEY_L);
+        BindController.addBind(ControlType.KEYBOARD, "lookleft", KEY_J);
+        BindController.addBind(ControlType.KEYBOARD, "lookup", KEY_I);
+        BindController.addBind(ControlType.KEYBOARD, "lookdown", KEY_K);
+        BindController.addBind(ControlType.KEYBOARD, "clear", KEY_G);
         
         RenderEngine.setSkybox(new Skybox(Texture.getCubemap(
                 Resource.getTexturePath("skybox\\majestic_ft.png"),
@@ -248,17 +273,15 @@ public class WorldEditor extends GGApplication{
                 Resource.getTexturePath("skybox\\majestic_dn.png"),
                 Resource.getTexturePath("skybox\\majestic_rt.png"),
                 Resource.getTexturePath("skybox\\majestic_lf.png")), 1500f));
+ 
+        cam = new Camera();
+        RenderEngine.useCamera(cam);
+        cam.setPos(new Vector3f(0,0,-10));
         
-        w = new WorldObject();
-        w.attach(new WorldObject());
-        WorldEngine.getCurrent().attach(w);
-        WorldEngine.getCurrent().attach(new WorldObject());
-        WorldEngine.getCurrent().attach(new WorldObject());
+        EditorTransmitter transmitter = new EditorTransmitter();
+        transmitter.editor = this;
         
-        refreshComponentList();
-        
-        updateAddRegion();
-        shell.open();
+        BindController.setOnlyController(transmitter);
     }
 
     @Override
@@ -269,19 +292,30 @@ public class WorldEditor extends GGApplication{
     int i = 0;
     
     @Override
-    public void update() {
-        i++;
-        if(i == 15){
-            i = 0;
-            if(currentview != null && currentview.complete){
-                currentview.update();
+    public void update(float delta) {
+        display.syncExec(() -> {
+            i++;
+            if(i == 15){
+                i = 0;
+                if(currentview != null && currentview.complete){
+                    currentview.update();
+                }
+            } 
+
+            if(refresh){
+                refreshComponentList();
+                refresh = false;
             }
-        } 
+        });
         
-        if(refresh){
-            refreshComponentList();
-            refresh = false;
-        }
+        currot.x += controlrot.x * rotspeed * delta;
+        currot.y += controlrot.y * rotspeed * delta;
+        currot.z += controlrot.z * rotspeed * delta;
+        cam.setRot(new Quaternionf(new Vector3f(0,currot.y,currot.z)).multiply(new Quaternionf(new Vector3f(currot.x,0,0))));    
+       
+        Vector3f nvector = control.multiply(delta * 15);
+        nvector = cam.getRot().transform(nvector);
+        cam.setPos(cam.getPos().addThis(nvector));
     }
  
     public static void useTreeItem(TreeItem item){
@@ -301,20 +335,26 @@ public class WorldEditor extends GGApplication{
             return;
         }
         
-        try {
-            ViewModel cvm = (ViewModel) vmclass.newInstance();
-            cvm.setComponent(component);
-            useViewModel(cvm);
+        
+        OpenGG.addExecutable(() -> {
+            try {
+                ViewModel cvm = (ViewModel) vmclass.newInstance();
+                cvm.setComponent(component);
+                cvm.updateLocal();
+                display.syncExec(() -> {
+                    useViewModel(cvm);
+                });
+            } catch (InstantiationException | IllegalAccessException ex) {
+                GGConsole.error("Failed to create instance of a ComponentViewModel for " + component.getName() + ", is there a default constructor?");
+            }               
+        });
             
-        } catch (InstantiationException | IllegalAccessException ex) {
-            GGConsole.error("Failed to create instance of a ComponentViewModel for " + component.getName() + ", is there a default constructor?");
-        }
+            
+        
     }
     
     public static void useViewModel(ViewModel cvm){
-        for (Control control : editarea.getChildren()) {
-            control.dispose();
-        }
+        clearArea(editarea);
         
         GGView view = new GGView(editarea, cvm);
         currentview = view;
@@ -370,6 +410,8 @@ public class WorldEditor extends GGApplication{
 
             @Override
             public void widgetSelected(SelectionEvent event) {
+                if(classes.getSelectionIndex() < 0)
+                    return;
                 ViewModelComponentRegisterInfoContainer info = ViewModelComponentRegistry.getAllRegistries().get(classes.getSelectionIndex());
                 Class clazz = info.component;
                 Class vmclazz = ViewModelComponentRegistry.findViewModel(clazz);
@@ -378,13 +420,7 @@ public class WorldEditor extends GGApplication{
                     ViewModel cvm = (ViewModel) vmclazz.newInstance();
                     Initializer vmi = cvm.getInitializer();
                     if(vmi.elements.isEmpty()){
-                        Component newcomponent = cvm.getFromInitializer(vmi);
-                        WorldEngine.getCurrent().attach(newcomponent);
-                    
-                        cvm.setComponent(newcomponent);
-                        refreshComponentList();
-                        useTreeItem(tree.getItems()[tree.getItems().length-1]);
-                        tree.setSelection(tree.getItems()[tree.getItems().length-1]);
+                        createComponent(vmi, cvm);
                     }else{
                         NewComponentShell ncs = new NewComponentShell(vmi, shell, cvm);
                         ncs.nshell.addDisposeListener(new DisposeListener(){
@@ -445,10 +481,17 @@ public class WorldEditor extends GGApplication{
     }
     
     public static void createComponent(Initializer vmi, ViewModel cvm){
-        Component ncomp = cvm.getFromInitializer(vmi);
-        WorldEngine.getCurrent().attach(ncomp);
+        OpenGG.addExecutable(() -> {
+            Component ncomp = cvm.getFromInitializer(vmi);
+            WorldEngine.getCurrent().attach(ncomp);
+            WorldEngine.rescanCurrent();
+            display.asyncExec(() -> {
+                refreshComponentList();
+                useTreeItem(tree.getItems()[tree.getItems().length-1]);
+                tree.setSelection(tree.getItems()[tree.getItems().length-1]);
+            });
+        });
         
-        refreshComponentList();
     }
     
     public static void setupTree(){
@@ -547,5 +590,89 @@ public class WorldEditor extends GGApplication{
             }
         });
         tree.pack();
+    }
+    
+    public static void setView(GGView view){
+        currentview = view;
+    }
+
+    @Override
+    public void onAction(Action action) {
+        if(action.type == ActionType.PRESS){
+            switch(action.name){
+                case "forward":
+                    control.z += 1;
+                    break;
+                case "backward":
+                    control.z -= 1;
+                    break;
+                case "left":
+                    control.x += 1;
+                    break;
+                case "right":
+                    control.x -= 1;
+                    break;
+                case "up":
+                    control.y -= 1;
+                    break;
+                case "down":
+                    control.y += 1;
+                    break;
+                case "lookright":
+                    controlrot.y += 1;
+                    break;
+                case "lookleft":
+                    controlrot.y -= 1;
+                    break;
+                 case "lookup":
+                    controlrot.x -= 1;
+                    break;
+                case "lookdown":
+                    controlrot.x += 1;
+                    break;
+                case "clear":
+                    controlrot = new Vector3f();
+                    control = new Vector3f();
+                    break;
+            }
+        }else{
+            switch(action.name){
+                case "forward":
+                    control.z -= 1;
+                    break;
+                case "backward":
+                    control.z += 1;
+                    break;
+                case "left":
+                    control.x -= 1;
+                    break;
+                case "right":
+                    control.x += 1;
+                    break;
+                case "up":
+                    control.y += 1;
+                    break;
+                case "down":
+                    control.y -= 1;
+                    break;
+                case "lookright":
+                    controlrot.y -= 1;
+                    break;
+                case "lookleft":
+                    controlrot.y += 1;
+                    break;
+                case "lookup":
+                    controlrot.x += 1;
+                    break;
+                case "lookdown":
+                    controlrot.x -= 1;
+                    break;
+
+            }
+        }
+    }
+    
+    public static void close(){
+        OpenGG.endApplication();
     }
 }
