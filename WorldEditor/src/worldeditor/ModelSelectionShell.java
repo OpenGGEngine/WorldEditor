@@ -6,8 +6,9 @@
 package worldeditor;
 
 import com.opengg.core.engine.Resource;
-import com.opengg.core.render.texture.TextureData;
-import com.opengg.core.render.texture.TextureManager;
+import com.opengg.core.model.Model;
+import com.opengg.core.model.ModelLoader;
+import com.opengg.core.model.ModelManager;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.events.SelectionEvent;
@@ -24,26 +25,26 @@ import org.eclipse.swt.widgets.Text;
  *
  * @author Javier
  */
-public class TextureSelectionShell {
+public class ModelSelectionShell {
     Shell nshell;
     boolean done;
-    TextureInnerClassFix data = new TextureInnerClassFix();    
+    ModelInnerClassFix data = new ModelInnerClassFix();    
     
-    public static TextureData getData(Shell parent){
-        TextureSelectionShell shell = new TextureSelectionShell(parent);
+    public static Model getModel(Shell parent){
+        ModelSelectionShell shell = new ModelSelectionShell(parent);
         
         while(!shell.nshell.isDisposed()){
             if(!shell.nshell.getDisplay().readAndDispatch())
                 shell.nshell.getDisplay().sleep();
         }
         
-        return shell.data.data;
+        return shell.data.model;
     }
     
-    public TextureSelectionShell(Shell parent){
+    public ModelSelectionShell(Shell parent){
         nshell = new Shell(parent);
         nshell.setLayout(new FillLayout(SWT.VERTICAL));
-        nshell.setText("Texture Selection");
+        nshell.setText("Model Selection");
         nshell.setMinimumSize(40, 60);
         
         nshell.addDisposeListener((DisposeEvent event) -> {
@@ -53,16 +54,16 @@ public class TextureSelectionShell {
         Composite composite = new Composite(nshell, SWT.BORDER);
         composite.setLayout(new GridLayout(10, true));
         
-        for(TextureData tex : TextureManager.getData().values()){
+        for(Model model : ModelManager.getModelList().values()){
             Button button = new Button(composite, SWT.PUSH);
-            button.setText(tex.source);
+            button.setText(model.getName());
             button.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false));
             button.addSelectionListener(new SelectionListener(){
 
                 @Override
                 public void widgetSelected(SelectionEvent e) {
-                    String id = button.getText();
-                    data.data = TextureManager.getTextureData(id);
+                    String name = button.getText();
+                    data.model = ModelManager.getModel(name);
                     nshell.dispose();
                 }
 
@@ -76,15 +77,15 @@ public class TextureSelectionShell {
         input.setLayout(new FillLayout(SWT.HORIZONTAL));
         
         Text newtex = new Text(input, SWT.SINGLE | SWT.BORDER);
-        newtex.setMessage("Texture name (Will be searched in resources\\tex\\)");
+        newtex.setMessage("Model name (Will be searched in resources\\models\\)");
         
         Button enter = new Button(input, SWT.PUSH);
-        enter.setText("Load Texture");
+        enter.setText("Load Model");
         enter.addSelectionListener(new SelectionListener(){
 
             @Override
             public void widgetSelected(SelectionEvent e) {
-                data.data = TextureManager.loadTexture(Resource.getTexturePath(newtex.getText()), true);
+                data.model = Resource.getModel(newtex.getText());
                 nshell.dispose();
             }
 

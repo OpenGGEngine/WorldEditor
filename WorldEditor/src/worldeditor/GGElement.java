@@ -9,6 +9,7 @@ import com.opengg.core.engine.OpenGG;
 import com.opengg.core.math.Vector2f;
 import com.opengg.core.math.Vector3f;
 import com.opengg.core.math.Vector4f;
+import com.opengg.core.model.Model;
 import com.opengg.core.render.texture.TextureData;
 import com.opengg.core.world.components.viewmodel.Element;
 import java.util.ArrayList;
@@ -243,6 +244,7 @@ public class GGElement {
 
             Button button = new Button(editarea, SWT.PUSH);
             button.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
+            button.setText("Choose Texture");
             all.add(button);
             
             update(true);
@@ -253,6 +255,33 @@ public class GGElement {
                     TextureData data = TextureSelectionShell.getData(editarea.getShell());
                     if(data == null) return;
                     element.value = data;
+                    if(view != null && element.autoupdate) fireEvent(element);
+                    update(true);
+                }
+
+                @Override public void widgetDefaultSelected(SelectionEvent e) {}
+            });
+
+            Label fillspace = new Label(editarea, SWT.NULL);
+            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
+        }else if(element.type == Element.MODEL){
+            Label label = new Label(editarea, SWT.NULL);
+            label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
+            all.add(label);
+
+            Button button = new Button(editarea, SWT.PUSH);
+            button.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
+            button.setText("Choose Model");
+            all.add(button);
+            
+            update(true);
+            
+            button.addSelectionListener(new SelectionListener(){
+                @Override
+                public void widgetSelected(SelectionEvent e) {
+                    Model model = ModelSelectionShell.getModel(editarea.getShell());
+                    if(model == null) return;
+                    element.value = model;
                     if(view != null && element.autoupdate) fireEvent(element);
                     update(true);
                 }

@@ -85,7 +85,8 @@ public class WorldEditor extends GGApplication implements Actionable{
     private static Vector3f controlrot = new Vector3f();
     private static Vector3f currot = new Vector3f();
     private static float rotspeed = 30;
-    private Camera cam;
+    private static Camera cam;
+    private static EditorTransmitter transmitter;
 
     public static void main(String[] args) {
         Thread ui = new Thread(() -> {
@@ -95,7 +96,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         ui.start();
         
         try {
-            Thread.sleep(150);
+            Thread.sleep(300);
         } catch (InterruptedException ex) {}
         
         
@@ -142,7 +143,7 @@ public class WorldEditor extends GGApplication implements Actionable{
             @Override
             public void widgetSelected(SelectionEvent e) {
                 DirectoryDialog dialog = new DirectoryDialog(shell, SWT.OPEN);
-                dialog.setFilterPath(Resource.getLocal(""));
+                dialog.setFilterPath(Resource.getAbsoluteFromLocal(""));
                 String npath = dialog.open();
                 Resource.setDefaultPath(npath);
                 shell.setText("World Editor: " + npath);
@@ -157,7 +158,7 @@ public class WorldEditor extends GGApplication implements Actionable{
                 FileDialog dialog = new FileDialog(shell, SWT.OPEN);
                 dialog.setText("Game JAR file");
                 dialog.setFilterExtensions(new String[]{"*.jar"});
-                dialog.setFilterPath(Resource.getLocal(""));
+                dialog.setFilterPath(Resource.getAbsoluteFromLocal(""));
                 String result = dialog.open();
                 ViewModelComponentRegistry.clearRegistry();
                 ViewModelComponentRegistry.initialize();
@@ -167,8 +168,50 @@ public class WorldEditor extends GGApplication implements Actionable{
             }
         });
         
-        MenuItem mapload = new MenuItem(fileMenu, SWT.PUSH);
-        mapload.setText("Load map");
+        MenuItem loadmap = new MenuItem(fileMenu, SWT.CASCADE);
+        loadmap.setText("Load world");
+        loadmap.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                FileDialog dialog = new FileDialog(shell, SWT.OPEN);
+                dialog.setText("Load world...");
+                dialog.setFilterExtensions(new String[]{"*.bwf"});
+                dialog.setFilterPath(Resource.getAbsoluteFromLocal(""));
+                String result = dialog.open();
+                if(result == null)
+                    return;
+                OpenGG.addExecutable(() -> {
+                    WorldEngine.useWorld(WorldEngine.loadWorld(result));
+                    RenderEngine.useCamera(cam);
+                    BindController.setOnlyController(transmitter);
+                    display.syncExec(() -> {
+                        refreshComponentList();
+                    });
+                });
+            }
+        });
+        
+        MenuItem savemap = new MenuItem(fileMenu, SWT.CASCADE);
+        savemap.setText("Save world");
+        savemap.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                FileDialog dialog = new FileDialog(shell, SWT.OPEN);
+                dialog.setText("Save world...");
+                dialog.setFilterExtensions(new String[]{"*.bwf"});
+                dialog.setFilterPath(Resource.getAbsoluteFromLocal(""));
+                String result = dialog.open();
+                if(result == null)
+                    return;
+                OpenGG.addExecutable(() -> {
+                    WorldEngine.saveWorld(WorldEngine.getCurrent(), result);
+
+                    display.syncExec(() -> {
+                        refreshComponentList();
+                    });
+                });
+            }
+        });
 
         shell.setMenuBar(menuBar);
         
@@ -201,6 +244,7 @@ public class WorldEditor extends GGApplication implements Actionable{
             }
         }
         close();
+        display.dispose();
     }
     
     public static void initSWT2(){
@@ -240,7 +284,6 @@ public class WorldEditor extends GGApplication implements Actionable{
         localcanvas.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 2, 2));
     }
     
-    
     @Override
     public void setup(){
         ViewModelComponentRegistry.createRegisters();
@@ -278,10 +321,11 @@ public class WorldEditor extends GGApplication implements Actionable{
         RenderEngine.useCamera(cam);
         cam.setPos(new Vector3f(0,0,-10));
         
-        EditorTransmitter transmitter = new EditorTransmitter();
+        transmitter = new EditorTransmitter();
         transmitter.editor = this;
         
         BindController.setOnlyController(transmitter);
+        WorldEngine.shouldUpdate(false);
     }
 
     @Override
@@ -673,6 +717,6 @@ public class WorldEditor extends GGApplication implements Actionable{
     }
     
     public static void close(){
-        OpenGG.endApplication();
+        
     }
 }
