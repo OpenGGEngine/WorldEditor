@@ -314,7 +314,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         cam.setRot(new Quaternionf(new Vector3f(0,currot.y,currot.z)).multiply(new Quaternionf(new Vector3f(currot.x,0,0))));    
        
         Vector3f nvector = control.multiply(delta * 15);
-        nvector = cam.getRot().transform(nvector);
+        nvector = cam.getRot().invert().transform(nvector);
         cam.setPos(cam.getPos().addThis(nvector));
     }
  
