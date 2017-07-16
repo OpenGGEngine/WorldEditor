@@ -302,11 +302,11 @@ public class WorldEditor extends GGApplication implements Actionable{
         BindController.addBind(ControlType.KEYBOARD, "left", KEY_A);
         BindController.addBind(ControlType.KEYBOARD, "right", KEY_D);
         BindController.addBind(ControlType.KEYBOARD, "up", KEY_SPACE);
-        BindController.addBind(ControlType.KEYBOARD, "down", KEY_Z);
-        BindController.addBind(ControlType.KEYBOARD, "lookright", KEY_L);
-        BindController.addBind(ControlType.KEYBOARD, "lookleft", KEY_J);
-        BindController.addBind(ControlType.KEYBOARD, "lookup", KEY_I);
-        BindController.addBind(ControlType.KEYBOARD, "lookdown", KEY_K);
+        BindController.addBind(ControlType.KEYBOARD, "down", KEY_LEFT_SHIFT);
+        BindController.addBind(ControlType.KEYBOARD, "lookright", KEY_RIGHT);
+        BindController.addBind(ControlType.KEYBOARD, "lookleft", KEY_LEFT);
+        BindController.addBind(ControlType.KEYBOARD, "lookup", KEY_UP);
+        BindController.addBind(ControlType.KEYBOARD, "lookdown", KEY_DOWN);
         BindController.addBind(ControlType.KEYBOARD, "clear", KEY_G);
         
         RenderEngine.setSkybox(new Skybox(Texture.getCubemap(

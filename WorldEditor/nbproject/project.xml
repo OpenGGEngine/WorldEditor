@@ -17,7 +17,7 @@
                 <artifact-type>jar</artifact-type>
                 <script>build.xml</script>
                 <target>jar</target>
-                <clean-target>clean</clean-target>
+                <clean-target>jar</clean-target>
                 <id>jar</id>
             </reference>
             <reference>
@@ -25,7 +25,7 @@
                 <artifact-type>jar</artifact-type>
                 <script>build.xml</script>
                 <target>jar</target>
-                <clean-target>clean</clean-target>
+                <clean-target>jar</clean-target>
                 <id>jar</id>
             </reference>
         </references>

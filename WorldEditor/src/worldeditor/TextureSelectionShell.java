@@ -51,7 +51,7 @@ public class TextureSelectionShell {
         });
         
         Composite composite = new Composite(nshell, SWT.BORDER);
-        composite.setLayout(new GridLayout(10, true));
+        composite.setLayout(new GridLayout(4, true));
         
         for(TextureData tex : TextureManager.getData().values()){
             Button button = new Button(composite, SWT.PUSH);
