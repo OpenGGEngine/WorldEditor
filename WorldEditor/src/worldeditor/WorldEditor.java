@@ -71,10 +71,12 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
+import worldeditor.assetloader.AssetShell;
 
 public class WorldEditor extends GGApplication implements Actionable{
     private static Display display;
     private static Shell shell;
+    private static AssetShell modelloader;
     private static Tree tree;
     private static GGView currentview;
     private static Composite editarea;
@@ -126,10 +128,21 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         shell.setLayout(layout);
         shell.setText("World Editor");
-
+        modelloader = new AssetShell();
         Menu menuBar = new Menu(shell, SWT.BAR);
         MenuItem cascadeFileMenu = new MenuItem(menuBar, SWT.CASCADE);
         cascadeFileMenu.setText("&File");
+        
+        
+        MenuItem FileMenu = new MenuItem(menuBar, SWT.CASCADE);
+        FileMenu.setText("&AssetLoader");
+        FileMenu.addSelectionListener(new SelectionAdapter(){
+        @Override
+            public void widgetSelected(SelectionEvent e) {
+               modelloader.open();
+            }
+            
+    });
 
         Menu fileMenu = new Menu(shell, SWT.DROP_DOWN);
         cascadeFileMenu.setMenu(fileMenu);
@@ -149,6 +162,7 @@ public class WorldEditor extends GGApplication implements Actionable{
                 shell.setText("World Editor: " + npath);
             }
         });
+        
         
         MenuItem jarload = new MenuItem(fileMenu, SWT.CASCADE);
         jarload.setText("Load game JAR");
@@ -359,7 +373,7 @@ public class WorldEditor extends GGApplication implements Actionable{
        
         Vector3f nvector = control.multiply(delta * 15);
         nvector = cam.getRot().invert().transform(nvector);
-        cam.setPos(cam.getPos().addThis(nvector));
+        cam.setPos(cam.getPos().addThis(nvector.multiply(10)));
     }
  
     public static void useTreeItem(TreeItem item){
