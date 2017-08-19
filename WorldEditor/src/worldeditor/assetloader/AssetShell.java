@@ -19,6 +19,8 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
+import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.ProgressBar;
 import org.eclipse.swt.widgets.Shell;
 import worldeditor.assetloader.loader.AnimMeshesLoader;
 import worldeditor.assetloader.loader.AnimModel;
@@ -34,7 +36,11 @@ public class AssetShell {
 
     public int currentversion = 1;
 
-    private Shell shell;
+    public static Shell shell = new Shell(Display.getCurrent());
+
+    public static final Label label = new Label(shell, SWT.NULL);
+    public static final ProgressBar bar = new ProgressBar(shell, SWT.SMOOTH);
+    public static final Button animated = new Button(shell, SWT.CHECK);
 
     class Open implements SelectionListener {
 
@@ -54,12 +60,17 @@ public class AssetShell {
                 FileOutputStream ps;
                 ps = new FileOutputStream(endloc + ".bmf");
                 try (DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(ps))) {
-                    //AnimModel sd = AnimMeshesLoader.loadAnimModel(selected,"");
-                    //sd.putData(dos);
-                    Mesh[] s = StaticMeshesLoader.load(selected, "");
-                    Model m = new Model();
-                    m.setMeshes(s);
-                    m.putData(dos,false);
+                    if ((Boolean) animated.getSelection()) {
+                        System.out.println("Loading Animated Model");
+                        AnimModel sd = AnimMeshesLoader.loadAnimModel(selected, "");
+                        sd.putData(dos);
+                    } else {
+                        System.out.println("Loading Static Model");
+                        Mesh[] s = StaticMeshesLoader.load(selected, "");
+                        Model m = new Model();
+                        m.setMeshes(s);
+                        m.putData(dos, false);
+                    }
                     System.out.println("We Done");
 
                 } catch (Exception ex) {
@@ -78,10 +89,12 @@ public class AssetShell {
     }
 
     public AssetShell() {
-        shell = new Shell(Display.getCurrent());
-
+        bar.setBounds(10, 10, 200, 32);
+        label.setAlignment(SWT.RIGHT);
+        label.setBounds(10, 10, 80, 20);
+        animated.setText("Is Animated");
         GridLayout layout = new GridLayout();
-        layout.numColumns = 4;
+        layout.numColumns = 2;
         layout.makeColumnsEqualWidth = true;
 
         shell.setLayout(layout);
