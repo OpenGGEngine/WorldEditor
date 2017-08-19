@@ -5,6 +5,7 @@
  */
 package worldeditor.assetloader.loader;
 
+import com.opengg.core.render.animation.Animation;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Map;
@@ -41,7 +42,6 @@ public class AnimModel extends Model {
     public void putData(DataOutputStream ds) throws IOException{
         super.putData(ds,true);
         ds.writeInt(animations.size());
-        System.out.println("sd: "+ animations.size());
         for(String s: animations.keySet()){
             ds.writeInt(s.length());
             ds.writeChars(s);

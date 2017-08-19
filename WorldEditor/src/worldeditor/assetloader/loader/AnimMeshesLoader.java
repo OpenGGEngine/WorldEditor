@@ -4,9 +4,12 @@
 // * and open the template in the editor.
 // */
 package worldeditor.assetloader.loader;
+
 import com.opengg.core.math.Matrix4f;
 import com.opengg.core.math.Quaternionf;
 import com.opengg.core.model.Material;
+import com.opengg.core.render.animation.AnimatedFrame;
+import com.opengg.core.render.animation.Animation;
 import static org.lwjgl.assimp.Assimp.aiImportFile;
 import static org.lwjgl.assimp.Assimp.aiProcess_FixInfacingNormals;
 import static org.lwjgl.assimp.Assimp.aiProcess_GenSmoothNormals;
@@ -15,7 +18,6 @@ import static org.lwjgl.assimp.Assimp.aiProcess_LimitBoneWeights;
 import static org.lwjgl.assimp.Assimp.aiProcess_Triangulate;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +37,6 @@ import org.lwjgl.assimp.AIVector3D;
 import org.lwjgl.assimp.AIVectorKey;
 import org.lwjgl.assimp.AIVertexWeight;
 
-
 public class AnimMeshesLoader extends StaticMeshesLoader {
 
     private static void buildTransFormationMatrices(AINodeAnim aiNodeAnim, Node node) {
@@ -49,23 +50,17 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
             AIVector3D vec = aiVecKey.mValue();
 
             Matrix4f transfMat = new Matrix4f().translate(vec.x(), vec.y(), vec.z());
-//           System.out.println("Before: " + i);
-//           System.out.println(transfMat.toString());
             AIQuatKey quatKey = rotationKeys.get(i);
             AIQuaternion aiQuat = quatKey.mValue();
-            
-            Quaternionf quat = new Quaternionf(aiQuat.w(),aiQuat.x(), aiQuat.y(), aiQuat.z());
+
+            Quaternionf quat = new Quaternionf(aiQuat.w(), aiQuat.x(), aiQuat.y(), aiQuat.z());
             transfMat = transfMat.rotateQuat(quat);
-           // transfMat.rotate(quat);
-            
-//             System.out.println("After");
-//            System.out.println(transfMat.toString());
             if (i < aiNodeAnim.mNumScalingKeys()) {
                 aiVecKey = scalingKeys.get(i);
                 vec = aiVecKey.mValue();
                 transfMat = transfMat.scale(vec.x(), vec.y(), vec.z());
             }
-           
+
             node.addTransformation(transfMat);
         }
     }
@@ -125,13 +120,9 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
                 Bone bone = boneList.get(j);
                 Node node = rootNode.findByName(bone.getBoneName());
                 Matrix4f boneMatrix = Node.getParentTransforms(node, i);
-           //     System.out.println("bf");
-      //          System.out.println(Node.getParentTransforms(node, i).toString());
                 boneMatrix = boneMatrix.multiply(bone.getOffsetMatrix());
-                
+
                 boneMatrix = new Matrix4f(rootTransformation).multiply(boneMatrix);
-        //        System.out.println("TumsFestival");
-//              System.out.println(boneMatrix.toString());
                 frame.setMatrix(j, boneMatrix);
             }
         }
@@ -158,16 +149,8 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
                 Node node = rootNode.findByName(nodeName);
                 buildTransFormationMatrices(aiNodeAnim, node);
             }
-            
+
             List<AnimatedFrame> frames = buildAnimationFrames(boneList, rootNode, rootTransformation);
-            for(AnimatedFrame solid:frames){
-                 System.out.println(solid.toString());
-                for(Matrix4f five: solid.getJointMatrices()){
-                   
-                    System.out.println(five.toString());
-                    System.out.println("----");
-                }
-            }
             Animation animation = new Animation(aiAnimation.mName().dataString(), frames, aiAnimation.mDuration());
             animations.put(animation.getName(), animation);
         }
@@ -261,30 +244,23 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
     }
 
     private static Matrix4f toMatrix(AIMatrix4x4 aiMatrix4x4) {
-//        System.out.println("100 before");
-//        System.out.println(aiMatrix4x4.a1() + ","+aiMatrix4x4.a2() + ","+aiMatrix4x4.a3() + ","+aiMatrix4x4.a4() + ",");
-//        System.out.println(aiMatrix4x4.b1() + ","+ aiMatrix4x4.b2() + ","+ aiMatrix4x4.b3() + ","+ aiMatrix4x4.b4() + ",");
-//        System.out.println(aiMatrix4x4.c1() + ","+ aiMatrix4x4.c2() + ","+ aiMatrix4x4.c3() + ","+ aiMatrix4x4.c4() + ",");
-//        System.out.println(aiMatrix4x4.d1() + ","+ aiMatrix4x4.d2() + ","+ aiMatrix4x4.d3() + ","+ aiMatrix4x4.d4() + ",");
         Matrix4f result = new Matrix4f();
         result.m00 = aiMatrix4x4.a1();
-        result.m10=(aiMatrix4x4.a2());
-        result.m20=(aiMatrix4x4.a3());
-        result.m30=(aiMatrix4x4.a4());
-        result.m01=(aiMatrix4x4.b1());
-        result.m11=(aiMatrix4x4.b2());
-        result.m21=(aiMatrix4x4.b3());
-        result.m31=(aiMatrix4x4.b4());
-        result.m02=(aiMatrix4x4.c1());
-        result.m12=(aiMatrix4x4.c2());
-        result.m22=(aiMatrix4x4.c3());
-        result.m32=(aiMatrix4x4.c4());
-        result.m03=(aiMatrix4x4.d1());
-        result.m13=(aiMatrix4x4.d2());
-        result.m23=(aiMatrix4x4.d3());
-        result.m33=(aiMatrix4x4.d4());
-//        System.out.println("dumbo");
-//        System.out.println(result.toString());
+        result.m10 = (aiMatrix4x4.a2());
+        result.m20 = (aiMatrix4x4.a3());
+        result.m30 = (aiMatrix4x4.a4());
+        result.m01 = (aiMatrix4x4.b1());
+        result.m11 = (aiMatrix4x4.b2());
+        result.m21 = (aiMatrix4x4.b3());
+        result.m31 = (aiMatrix4x4.b4());
+        result.m02 = (aiMatrix4x4.c1());
+        result.m12 = (aiMatrix4x4.c2());
+        result.m22 = (aiMatrix4x4.c3());
+        result.m32 = (aiMatrix4x4.c4());
+        result.m03 = (aiMatrix4x4.d1());
+        result.m13 = (aiMatrix4x4.d2());
+        result.m23 = (aiMatrix4x4.d3());
+        result.m33 = (aiMatrix4x4.d4());
         return result;
     }
 }

@@ -35,7 +35,7 @@ public class Mesh {
     private float boundingRadius;
 
     public Mesh(float[] positions, float[] textCoords, float[] normals, int[] indices) {
-        this(positions, textCoords, normals, indices, null, createEmptyFloatArray(MAX_WEIGHTS * positions.length / 3, 0));
+        this(positions, textCoords, normals, indices, null, null);
         //this(positions, textCoords, normals, indices, createEmptyIntArray(MAX_WEIGHTS * positions.length / 3, 0), createEmptyFloatArray(MAX_WEIGHTS * positions.length / 3, 0));
     }
 
