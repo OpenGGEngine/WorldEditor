@@ -52,40 +52,38 @@ public class AssetShell {
                 String[] filterExt = {"*.obj", "*.3ds", "*.dae", "*.*"};
                 fd.setFilterExtensions(filterExt);
                 String selected = fd.open();
-                System.out.println(selected);
+                if (selected != null ) {
+                    //Mesh[] scientistman = ModelLoader.load(selected, "");
+                    String endloc = new File(selected).getAbsolutePath();
 
-                //Mesh[] scientistman = ModelLoader.load(selected, "");
-                String endloc = new File(selected).getAbsolutePath();
-                if(endloc !=null){
-                endloc.substring(0, endloc.lastIndexOf(File.separator));
-                FileOutputStream ps;
-                ps = new FileOutputStream(endloc + ".bmf");
-                try (DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(ps))) {
-                    if ((Boolean) animated.getSelection()) {
-                        System.out.println("Loading Animated Model");
-                        AnimModel sd = AnimMeshesLoader.loadAnimModel(selected, "");
-                        sd.putData(dos);
-                    } else {
-                        System.out.println("Loading Static Model");
-                        Mesh[] s = StaticMeshesLoader.load(selected, "");
-                        Model m = new Model();
-                        m.setMeshes(s);
-                        m.putData(dos, false);
+                    endloc.substring(0, endloc.lastIndexOf(File.separator));
+                    FileOutputStream ps;
+                    ps = new FileOutputStream(endloc + ".bmf");
+                    try (DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(ps))) {
+                        if ((Boolean) animated.getSelection()) {
+                            System.out.println("Loading Animated Model");
+                            AnimModel sd = AnimMeshesLoader.loadAnimModel(selected, "");
+                            sd.putData(dos);
+                        } else {
+                            System.out.println("Loading Static Model");
+                            Mesh[] s = StaticMeshesLoader.load(selected, "");
+                            Model m = new Model();
+                            m.setMeshes(s);
+                            m.putData(dos, false);
+                        }
+                        System.out.println("We Done");
+
+                    } catch (Exception ex) {
+                        Logger.getLogger(AssetShell.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                    System.out.println("We Done");
-
-                } catch (Exception ex) {
-                    Logger.getLogger(AssetShell.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                ps.close();
-                GGConsole.log("We Done");
-                }else{
+                    ps.close();
+                    GGConsole.log("We Done");
+                } else {
                     System.out.println("No Model Selected");
                 }
             } catch (Exception ex) {
                 Logger.getLogger(AssetShell.class.getName()).log(Level.SEVERE, null, ex);
             }
-            
 
         }
 
