@@ -38,7 +38,7 @@ public class AssetShell {
 
     public static Shell shell = new Shell(Display.getCurrent());
 
-    public static final Label label = new Label(shell, SWT.NULL);
+    public static final Label label = new Label(shell, SWT.SMOOTH);
     public static final ProgressBar bar = new ProgressBar(shell, SWT.SMOOTH);
     public static final Button animated = new Button(shell, SWT.CHECK);
 
@@ -56,6 +56,7 @@ public class AssetShell {
 
                 //Mesh[] scientistman = ModelLoader.load(selected, "");
                 String endloc = new File(selected).getAbsolutePath();
+                if(endloc !=null){
                 endloc.substring(0, endloc.lastIndexOf(File.separator));
                 FileOutputStream ps;
                 ps = new FileOutputStream(endloc + ".bmf");
@@ -78,9 +79,13 @@ public class AssetShell {
                 }
                 ps.close();
                 GGConsole.log("We Done");
+                }else{
+                    System.out.println("No Model Selected");
+                }
             } catch (Exception ex) {
                 Logger.getLogger(AssetShell.class.getName()).log(Level.SEVERE, null, ex);
             }
+            
 
         }
 
@@ -90,6 +95,7 @@ public class AssetShell {
 
     public AssetShell() {
         bar.setBounds(10, 10, 200, 32);
+        label.setText("Ready");
         label.setAlignment(SWT.RIGHT);
         label.setBounds(10, 10, 80, 20);
         animated.setText("Is Animated");
