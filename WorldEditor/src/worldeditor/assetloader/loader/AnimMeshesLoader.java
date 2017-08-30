@@ -15,6 +15,7 @@ import com.opengg.core.model.AnimatedFrame;
 import com.opengg.core.model.Animation;
 import com.opengg.core.model.Mesh;
 import com.opengg.core.model.Model;
+import java.io.File;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import static org.lwjgl.assimp.Assimp.aiImportFile;
@@ -43,6 +44,7 @@ import org.lwjgl.assimp.AIScene;
 import org.lwjgl.assimp.AIVector3D;
 import org.lwjgl.assimp.AIVectorKey;
 import org.lwjgl.assimp.AIVertexWeight;
+import static worldeditor.assetloader.loader.StaticMeshesLoader.processMaterial;
 
 public class AnimMeshesLoader extends StaticMeshesLoader {
 
@@ -91,7 +93,9 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
         List<Material> materials = new ArrayList<>();
         for (int i = 0; i < numMaterials; i++) {
             AIMaterial aiMaterial = AIMaterial.create(aiMaterials.get(i));
-            materials.add(processMaterial(aiMaterial));
+            Material material = processMaterial(aiMaterial);
+            material.texpath = resourcePath.substring(0, resourcePath.lastIndexOf(File.separator) + 1) + "tex" + File.separator;
+            materials.add(material);
         }
 
         List<Bone> boneList = new ArrayList<>();
@@ -121,10 +125,11 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
         int numFrames = rootNode.getAnimationFrames();
         List<AnimatedFrame> frameList = new ArrayList<>();
         for (int i = 0; i < numFrames; i++) {
-            AnimatedFrame frame = new AnimatedFrame();
+            int numBones = boneList.size();
+            
+            AnimatedFrame frame = new AnimatedFrame(numBones);
             frameList.add(frame);
 
-            int numBones = boneList.size();
             for (int j = 0; j < numBones; j++) {
                 Bone bone = boneList.get(j);
                 Node node = rootNode.findByName(bone.getBoneName());
