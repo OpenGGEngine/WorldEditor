@@ -7,9 +7,16 @@ package worldeditor.assetloader.loader;
 
 import com.opengg.core.math.Matrix4f;
 import com.opengg.core.math.Quaternionf;
+import com.opengg.core.math.Tuple;
+import com.opengg.core.math.Vector2f;
+import com.opengg.core.math.Vector3f;
 import com.opengg.core.model.Material;
-import com.opengg.core.render.animation.AnimatedFrame;
-import com.opengg.core.render.animation.Animation;
+import com.opengg.core.model.AnimatedFrame;
+import com.opengg.core.model.Animation;
+import com.opengg.core.model.Mesh;
+import com.opengg.core.model.Model;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import static org.lwjgl.assimp.Assimp.aiImportFile;
 import static org.lwjgl.assimp.Assimp.aiProcess_FixInfacingNormals;
 import static org.lwjgl.assimp.Assimp.aiProcess_GenSmoothNormals;
@@ -49,7 +56,7 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
             AIVectorKey aiVecKey = positionKeys.get(i);
             AIVector3D vec = aiVecKey.mValue();
 
-            Matrix4f transfMat = new Matrix4f().translate(vec.x(), vec.y(), vec.z());
+            Matrix4f transfMat = Matrix4f.translate(vec.x(), vec.y(), vec.z());
             AIQuatKey quatKey = rotationKeys.get(i);
             AIQuaternion aiQuat = quatKey.mValue();
 
@@ -65,14 +72,14 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
         }
     }
 
-    public static AnimModel loadAnimModel(String resourcePath, String texturesDir)
+    public static Model loadAnimModel(String resourcePath)
             throws Exception {
-        return loadAnimModel(resourcePath, texturesDir,
+        return loadAnimModel(resourcePath,
                 aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
                 | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights);
     }
 
-    public static AnimModel loadAnimModel(String resourcePath, String texturesDir, int flags)
+    public static Model loadAnimModel(String resourcePath, int flags)
             throws Exception {
         AIScene aiScene = aiImportFile(resourcePath, flags);
         if (aiScene == null) {
@@ -84,26 +91,28 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
         List<Material> materials = new ArrayList<>();
         for (int i = 0; i < numMaterials; i++) {
             AIMaterial aiMaterial = AIMaterial.create(aiMaterials.get(i));
-            processMaterial(aiMaterial, materials, texturesDir);
+            materials.add(processMaterial(aiMaterial));
         }
 
         List<Bone> boneList = new ArrayList<>();
         int numMeshes = aiScene.mNumMeshes();
         PointerBuffer aiMeshes = aiScene.mMeshes();
-        Mesh[] meshes = new Mesh[numMeshes];
+        
+        List<Mesh> meshes = new ArrayList<>();
         for (int i = 0; i < numMeshes; i++) {
             AIMesh aiMesh = AIMesh.create(aiMeshes.get(i));
             Mesh mesh = processMesh(aiMesh, materials, boneList);
-            meshes[i] = mesh;
+            meshes.add(mesh);
         }
 
         AINode aiRootNode = aiScene.mRootNode();
         Matrix4f rootTransfromation = AnimMeshesLoader.toMatrix(aiRootNode.mTransformation());
         Node rootNode = processNodesHierarchy(aiRootNode, null);
         Map<String, Animation> animations = processAnimations(aiScene, boneList, rootNode, rootTransfromation);
-        AnimModel item = new AnimModel(meshes, animations);
+        
+        Model model = new Model("mname", meshes, animations);
 
-        return item;
+        return model;
     }
 
     private static List<AnimatedFrame> buildAnimationFrames(List<Bone> boneList, Node rootNode,
@@ -151,7 +160,7 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
             }
 
             List<AnimatedFrame> frames = buildAnimationFrames(boneList, rootNode, rootTransformation);
-            Animation animation = new Animation(aiAnimation.mName().dataString(), frames, aiAnimation.mDuration());
+            Animation animation = new Animation(aiAnimation.mName().dataString(), frames, (float) aiAnimation.mDuration());
             animations.put(animation.getName(), animation);
         }
         return animations;
@@ -186,7 +195,7 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
         for (int i = 0; i < numVertices; i++) {
             List<VertexWeight> vertexWeightList = weightSet.get(i);
             int size = vertexWeightList != null ? vertexWeightList.size() : 0;
-            for (int j = 0; j < Mesh.MAX_WEIGHTS; j++) {
+            for (int j = 0; j < 4; j++) {
                 if (j < size) {
                     VertexWeight vw = vertexWeightList.get(j);
                     weights.add(vw.getWeight());
@@ -200,22 +209,15 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
     }
 
     private static Mesh processMesh(AIMesh aiMesh, List<Material> materials, List<Bone> boneList) {
-        List<Float> vertices = new ArrayList<>();
-        List<Float> textures = new ArrayList<>();
-        List<Float> normals = new ArrayList<>();
-        List<Integer> indices = new ArrayList<>();
         List<Integer> boneIds = new ArrayList<>();
         List<Float> weights = new ArrayList<>();
 
-        processVertices(aiMesh, vertices);
-        processNormals(aiMesh, normals);
-        processTextCoords(aiMesh, textures);
-        processIndices(aiMesh, indices);
+        List<Vector3f> vertices = processVertices(aiMesh);
+        List<Vector3f> normals = processNormals(aiMesh);
+        List<Vector2f> texcoords = processTexCoords(aiMesh);
+        List<Integer> indices = processIndices(aiMesh);
         processBones(aiMesh, boneList, boneIds, weights);
 
-        Mesh mesh = new Mesh(Utils.listToArray(vertices), Utils.listToArray(textures),
-                Utils.listToArray(normals), Utils.listIntToArray(indices),
-                Utils.listIntToArray(boneIds), Utils.listToArray(weights));
         Material material;
         int materialIdx = aiMesh.mMaterialIndex();
         if (materialIdx >= 0 && materialIdx < materials.size()) {
@@ -223,7 +225,12 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
         } else {
             material = new Material("default");
         }
-        mesh.setMaterial(material);
+        
+        Tuple<FloatBuffer, IntBuffer> buffers = MeshUtil.getMeshBuffers(Utils.listVector3fToArray(vertices), Utils.listVector2fToArray(texcoords),
+                Utils.listVector3fToArray(normals), Utils.listIntToArray(indices),
+                Utils.listIntToArray(boneIds), Utils.listFloatToArray(weights));
+        
+        Mesh mesh = new Mesh(buffers.x, buffers.y, material, true);
 
         return mesh;
     }

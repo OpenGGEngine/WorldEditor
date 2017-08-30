@@ -9,9 +9,15 @@ package worldeditor.assetloader.loader;
  *
  * @author Warren
  */
+import com.opengg.core.math.Tuple;
+import com.opengg.core.math.Vector2f;
 import com.opengg.core.math.Vector3f;
 import com.opengg.core.math.Vector4f;
 import com.opengg.core.model.Material;
+import com.opengg.core.model.Mesh;
+import com.opengg.core.model.Model;
+import java.io.File;
+import java.nio.FloatBuffer;
 import static org.lwjgl.assimp.Assimp.AI_MATKEY_COLOR_AMBIENT;
 import static org.lwjgl.assimp.Assimp.AI_MATKEY_COLOR_DIFFUSE;
 import static org.lwjgl.assimp.Assimp.AI_MATKEY_COLOR_SPECULAR;
@@ -37,56 +43,47 @@ import org.lwjgl.assimp.AIScene;
 import org.lwjgl.assimp.AIString;
 import org.lwjgl.assimp.AIVector3D;
 import org.lwjgl.assimp.Assimp;
-import worldeditor.assetloader.AssetShell;
 
 public class StaticMeshesLoader {
     
-    public static Mesh[] load(String resourcePath, String texturesDir) throws Exception {
-        return load(resourcePath, texturesDir,
+    public static Model load(String resourcePath) throws Exception {
+        return load(resourcePath,
                 aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
                 | aiProcess_FixInfacingNormals);
     }
     
-    public static Mesh[] load(String resourcePath, String texturesDir, int flags) throws Exception {
+    public static Model load(String resourcePath, int flags) throws Exception {
         AIScene aiScene = aiImportFile(resourcePath, flags);
         if (aiScene == null) {
             throw new Exception("Error loading model");
         }
-        AssetShell.shell.getDisplay().asyncExec(new Runnable() {
-            public void run() {
-                AssetShell.bar.setMaximum(aiScene.mNumMeshes());
-            }
-        });
         
         int numMaterials = aiScene.mNumMaterials();
         PointerBuffer aiMaterials = aiScene.mMaterials();
         List<Material> materials = new ArrayList<>();
         for (int i = 0; i < numMaterials; i++) {
             AIMaterial aiMaterial = AIMaterial.create(aiMaterials.get(i));
-            processMaterial(aiMaterial, materials, texturesDir);
+            Material material = processMaterial(aiMaterial);
+            material.texpath = resourcePath.substring(0, resourcePath.lastIndexOf(File.separator) + 1) + "tex" + File.separator;
+            materials.add(material);
         }
         
         int numMeshes = aiScene.mNumMeshes();
         PointerBuffer aiMeshes = aiScene.mMeshes();
-        Mesh[] meshes = new Mesh[numMeshes];
+        List<Mesh> meshes = new ArrayList<>();
         for (int i = 0; i < numMeshes; i++) {
             AIMesh aiMesh = AIMesh.create(aiMeshes.get(i));
             Mesh mesh = processMesh(aiMesh, materials);
-            meshes[i] = mesh;
-            final int i2 = i;
-            AssetShell.shell.getDisplay().asyncExec(new Runnable() {
-                @Override
-                public void run() {
-                    AssetShell.bar.setSelection(i2 + 1);
-                    AssetShell.label.setText((i2+1) +"/" +aiScene.mNumMeshes());
-                }
-            });
-        }
+            meshes.add(mesh);
+        }      
         
-        return meshes;
+        Model model = new Model("", meshes);
+        
+        return model;
     }
     
-    protected static void processIndices(AIMesh aiMesh, List<Integer> indices) {
+    protected static List<Integer> processIndices(AIMesh aiMesh) {
+        List<Integer> indices = new ArrayList<>();
         int numFaces = aiMesh.mNumFaces();
         AIFace.Buffer aiFaces = aiMesh.mFaces();
         for (int i = 0; i < numFaces; i++) {
@@ -96,10 +93,10 @@ public class StaticMeshesLoader {
                 indices.add(buffer.get());
             }
         }
+        return indices;
     }
     
-    protected static void processMaterial(AIMaterial aiMaterial, List<Material> materials,
-            String texturesDir) throws Exception {
+    protected static Material processMaterial(AIMaterial aiMaterial) throws Exception {
         AIColor4D colour = AIColor4D.create();
         Material material = new Material(aiMaterial.toString());
         AIString path = AIString.calloc();
@@ -107,11 +104,9 @@ public class StaticMeshesLoader {
                 null, null, null, null, null);
         
         String textPath = path.dataString();
-        System.out.println(textPath);
         if (textPath != null && textPath.length() > 0) {
             material.hascolmap = true;
             material.mapKdFilename = textPath;
-            
         }
         
         Vector4f ambient = Material.DEFAULT_COLOUR;
@@ -140,22 +135,21 @@ public class StaticMeshesLoader {
         
         material.ks = new Vector3f(specular);
         
-        materials.add(material);
+        return material;
     }
     
-    private static Mesh processMesh(AIMesh aiMesh, List<Material> materials) {
-        List<Float> vertices = new ArrayList<>();
-        List<Float> textures = new ArrayList<>();
-        List<Float> normals = new ArrayList<>();
-        List<Integer> indices = new ArrayList();
+    private static Mesh processMesh(AIMesh aiMesh, List<Material> materials) { 
+        List<Vector3f>  vertices  = processVertices(aiMesh);
+        List<Vector3f>  normals   = processNormals(aiMesh);
+        List<Vector2f>  texcoords = processTexCoords(aiMesh);
+        List<Integer>   indices   = processIndices(aiMesh);
         
-        processVertices(aiMesh, vertices);
-        processNormals(aiMesh, normals);
-        processTextCoords(aiMesh, textures);
-        processIndices(aiMesh, indices);
+        Tuple<FloatBuffer, IntBuffer> buffers = MeshUtil.getMeshBuffers(
+                Utils.listVector3fToArray(vertices),
+                Utils.listVector2fToArray(texcoords),
+                Utils.listVector3fToArray(normals),
+                Utils.listIntToArray(indices));
         
-        Mesh mesh = new Mesh(Utils.listToArray(vertices), Utils.listToArray(textures),
-                Utils.listToArray(normals), Utils.listIntToArray(indices));
         Material material;
         int materialIdx = aiMesh.mMaterialIndex();
         if (materialIdx >= 0 && materialIdx < materials.size()) {
@@ -163,38 +157,42 @@ public class StaticMeshesLoader {
         } else {
             material = Material.defaultmaterial;
         }
-        mesh.setMaterial(material);
+        
+        Mesh mesh = new Mesh(buffers.x, buffers.y, material, false);
         
         return mesh;
     }
     
-    protected static void processNormals(AIMesh aiMesh, List<Float> normals) {
+    protected static List<Vector3f> processNormals(AIMesh aiMesh) {
+        ArrayList<Vector3f> normals = new ArrayList();
         AIVector3D.Buffer aiNormals = aiMesh.mNormals();
-        while (aiNormals != null && aiNormals.remaining() > 0) {
-            AIVector3D aiNormal = aiNormals.get();
-            normals.add(aiNormal.x());
-            normals.add(aiNormal.y());
-            normals.add(aiNormal.z());
+        while (aiNormals.remaining() > 0) {
+            normals.add(toVector3f(aiNormals.get()));
         }
+        return normals;
     }
     
-    protected static void processTextCoords(AIMesh aiMesh, List<Float> textures) {
-        AIVector3D.Buffer textCoords = aiMesh.mTextureCoords(0);
-        int numTextCoords = textCoords != null ? textCoords.remaining() : 0;
-        for (int i = 0; i < numTextCoords; i++) {
-            AIVector3D textCoord = textCoords.get();
-            textures.add(textCoord.x());
-            textures.add(1 - textCoord.y());
+    protected static List<Vector2f> processTexCoords(AIMesh aiMesh) {
+        ArrayList<Vector2f> texcoords = new ArrayList<>();
+        AIVector3D.Buffer texCoords = aiMesh.mTextureCoords(0);
+        int numTexCoords = texCoords != null ? texCoords.remaining() : 0;
+        for (int i = 0; i < numTexCoords; i++) {
+            AIVector3D texCoord = texCoords.get();
+            texcoords.add(new Vector2f(texCoord.x(), 1-texCoord.y()));
         }
+        return texcoords;
     }
     
-    protected static void processVertices(AIMesh aiMesh, List<Float> vertices) {
+    protected static List<Vector3f> processVertices(AIMesh aiMesh) {
+        ArrayList<Vector3f> vertices = new ArrayList();
         AIVector3D.Buffer aiVertices = aiMesh.mVertices();
         while (aiVertices.remaining() > 0) {
-            AIVector3D aiVertex = aiVertices.get();
-            vertices.add(aiVertex.x());
-            vertices.add(aiVertex.y());
-            vertices.add(aiVertex.z());
+            vertices.add(toVector3f(aiVertices.get()));
         }
+        return vertices;
+    }
+    
+    public static Vector3f toVector3f(AIVector3D vector){
+        return new Vector3f(vector.x(), vector.y(), vector.z());
     }
 }

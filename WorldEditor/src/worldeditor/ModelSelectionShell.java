@@ -5,10 +5,12 @@
  */
 package worldeditor;
 
+import com.opengg.core.engine.OpenGG;
 import com.opengg.core.engine.Resource;
 import com.opengg.core.model.Model;
 import com.opengg.core.model.ModelLoader;
 import com.opengg.core.model.ModelManager;
+import java.io.File;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.events.SelectionEvent;
@@ -85,8 +87,18 @@ public class ModelSelectionShell {
 
             @Override
             public void widgetSelected(SelectionEvent e) {
-                data.model = Resource.getModel(newtex.getText());
-                nshell.dispose();
+                String mname = newtex.getText();
+                OpenGG.addExecutable(() -> {
+                    if(new File(mname).isAbsolute())
+                        data.model = ModelLoader.loadModel(mname);
+                    else
+                        data.model = Resource.getModel(newtex.getText());
+                    nshell.getDisplay().asyncExec(() -> {
+                        nshell.dispose();
+                    });
+                    
+                });
+                
             }
 
             @Override

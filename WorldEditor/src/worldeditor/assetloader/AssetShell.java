@@ -6,26 +6,25 @@
 package worldeditor.assetloader;
 
 import com.opengg.core.engine.GGConsole;
+import com.opengg.core.model.Model;
+import com.opengg.core.model.ModelManager;
+import com.opengg.core.util.GGOutputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.ProgressBar;
 import org.eclipse.swt.widgets.Shell;
 import worldeditor.assetloader.loader.AnimMeshesLoader;
-import worldeditor.assetloader.loader.AnimModel;
-import worldeditor.assetloader.loader.Mesh;
-import worldeditor.assetloader.loader.Model;
 import worldeditor.assetloader.loader.StaticMeshesLoader;
 
 /**
@@ -36,85 +35,106 @@ public class AssetShell {
 
     public int currentversion = 1;
 
-    public static Shell shell = new Shell(Display.getCurrent());
+    public static AssetShell shell;
+    
+    public Shell nshell;
+    public Label label;
+    public ProgressBar bar;
+    public Button animated;
 
-    public static final Label label = new Label(shell, SWT.SMOOTH);
-    public static final ProgressBar bar = new ProgressBar(shell, SWT.SMOOTH);
-    public static final Button animated = new Button(shell, SWT.CHECK);
-
-    class Open implements SelectionListener {
-
-        public void widgetSelected(SelectionEvent event) {
-            try {
-                FileDialog fd = new FileDialog(shell, SWT.OPEN);
-                fd.setText("Load Model");
-                fd.setFilterPath("C:/");
-                String[] filterExt = {"*.obj", "*.3ds", "*.dae", "*.*"};
-                fd.setFilterExtensions(filterExt);
-                String selected = fd.open();
-                if (selected != null ) {
-                    //Mesh[] scientistman = ModelLoader.load(selected, "");
-                    String endloc = new File(selected).getAbsolutePath();
-
-                    endloc.substring(0, endloc.lastIndexOf(File.separator));
-                    FileOutputStream ps;
-                    ps = new FileOutputStream(endloc + ".bmf");
-                    try (DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(ps))) {
-                        if ((Boolean) animated.getSelection()) {
-                            System.out.println("Loading Animated Model");
-                            AnimModel sd = AnimMeshesLoader.loadAnimModel(selected, "");
-                            sd.putData(dos);
-                        } else {
-                            System.out.println("Loading Static Model");
-                            Mesh[] s = StaticMeshesLoader.load(selected, "");
-                            Model m = new Model();
-                            m.setMeshes(s);
-                            m.putData(dos, false);
-                        }
-                        System.out.println("We Done");
-
-                    } catch (Exception ex) {
-                        Logger.getLogger(AssetShell.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                    ps.close();
-                    GGConsole.log("We Done");
-                } else {
-                    System.out.println("No Model Selected");
-                }
-            } catch (Exception ex) {
-                Logger.getLogger(AssetShell.class.getName()).log(Level.SEVERE, null, ex);
-            }
-
-        }
-
-        public void widgetDefaultSelected(SelectionEvent event) {
+    public static void loadModel(Shell parent){
+        shell = new AssetShell(parent);
+        
+        while(!shell.nshell.isDisposed()){
+            if(!shell.nshell.getDisplay().readAndDispatch())
+                shell.nshell.getDisplay().sleep();
         }
     }
-
-    public AssetShell() {
+    
+    public AssetShell(Shell parent) {
+        nshell = new Shell(parent);
+        nshell.setLayout(new FillLayout(SWT.VERTICAL));
+        nshell.setText("Model Converter");
+        nshell.setMinimumSize(40, 60);
+        
+        nshell.addDisposeListener((DisposeEvent event) -> {
+            parent.setEnabled(true);
+        });
+        
+        bar = new ProgressBar(nshell, SWT.SMOOTH);
         bar.setBounds(10, 10, 200, 32);
-        label.setText("Ready");
+        
+        label = new Label(nshell, SWT.NULL);
         label.setAlignment(SWT.RIGHT);
         label.setBounds(10, 10, 80, 20);
-        animated.setText("Is Animated");
+        
+        animated = new Button(nshell, SWT.CHECK);
+        animated.setText("Load Animations");
+     
         GridLayout layout = new GridLayout();
         layout.numColumns = 2;
         layout.makeColumnsEqualWidth = true;
-
-        shell.setLayout(layout);
-
-        final Button button = new Button(shell, SWT.PUSH);
+        
+        final Button button = new Button(nshell, SWT.PUSH);
         button.setText("Load Model");
         button.setVisible(true);
 
-        button.addSelectionListener(new Open());
-    }
+        button.addSelectionListener(new SelectionListener() {
 
-    public void open() {
-        shell.open();
-    }
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                try {
+                    FileDialog fd = new FileDialog(nshell, SWT.OPEN);
+                    fd.setText("Load Model");
+                    fd.setFilterPath("C:/");
+                    String[] filterExt = {"*.obj; *.3ds; *.dae; *.fbx; *.stl; *.lwo; *.blend"};
+                    fd.setFilterExtensions(filterExt);
+                    String path = fd.open();
+                    
+                    if(path == null || path.isEmpty())
+                        return;
+                    
+                    GGConsole.log("Parsing model at " + path + "...");
+                    
+                    Model model;
+                    
+                    if ((Boolean) animated.getSelection()) {
+                        model = AnimMeshesLoader.loadAnimModel(path);
+                    } else {
+                        model = StaticMeshesLoader.load(path);
+                    }
 
-    public void close() {
-        shell.setVisible(false);
+                    ModelManager.addModel(model);
+
+                    GGConsole.log("Model at " + path + " has been parsed successfully, writing to disk...");
+                    
+                    String endloc = new File(path).getAbsolutePath();
+                    endloc = endloc.substring(0, endloc.lastIndexOf("."));
+                    try (GGOutputStream out = new GGOutputStream(new DataOutputStream(new BufferedOutputStream(new FileOutputStream(endloc + ".bmf"))))) {
+                        model.putData(out);
+                        GGConsole.log("Model at " + endloc + " has been written successfully");
+                    } catch (Exception ex) {
+                        GGConsole.error("Failed to write model!");
+                        ex.printStackTrace();
+                    }
+    
+                } catch (Exception ex) {
+                    GGConsole.error("Error during model loading! " + ex.toString());
+                    ex.printStackTrace();
+                }
+            }
+
+            @Override
+            public void widgetDefaultSelected(SelectionEvent e) {
+
+            }
+
+        });
+        
+        nshell.setLayout(layout);
+        nshell.pack();
+        nshell.open();
+        
+        parent.setEnabled(false);
     }
 }
