@@ -88,7 +88,7 @@ public class ModelSelectionShell {
             @Override
             public void widgetSelected(SelectionEvent e) {
                 String mname = newtex.getText();
-                OpenGG.addExecutable(() -> {
+                OpenGG.asyncExec(() -> {
                     if(new File(mname).isAbsolute())
                         data.model = ModelLoader.loadModel(mname);
                     else

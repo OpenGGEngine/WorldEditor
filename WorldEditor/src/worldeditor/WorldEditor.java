@@ -192,7 +192,7 @@ public class WorldEditor extends GGApplication implements Actionable {
                 if (result == null) {
                     return;
                 }
-                OpenGG.addExecutable(() -> {
+                OpenGG.asyncExec(() -> {
                     WorldEngine.useWorld(WorldEngine.loadWorld(result));
                     RenderEngine.useCamera(cam);
                     BindController.setOnlyController(transmitter);
@@ -216,7 +216,7 @@ public class WorldEditor extends GGApplication implements Actionable {
                 if (result == null) {
                     return;
                 }
-                OpenGG.addExecutable(() -> {
+                OpenGG.asyncExec(() -> {
                     WorldEngine.saveWorld(WorldEngine.getCurrent(), result);
 
                     display.syncExec(() -> {
@@ -395,7 +395,7 @@ public class WorldEditor extends GGApplication implements Actionable {
             return;
         }
 
-        OpenGG.addExecutable(() -> {
+        OpenGG.asyncExec(() -> {
             try {
                 ViewModel cvm = (ViewModel) vmclass.newInstance();
                 cvm.setComponent(component);
@@ -541,7 +541,7 @@ public class WorldEditor extends GGApplication implements Actionable {
     }
 
     public static void createComponent(Initializer vmi, ViewModel cvm) {
-        OpenGG.addExecutable(() -> {
+        OpenGG.asyncExec(() -> {
             Component ncomp = cvm.getFromInitializer(vmi);
             WorldEngine.getCurrent().attach(ncomp);
             WorldEngine.rescanCurrent();

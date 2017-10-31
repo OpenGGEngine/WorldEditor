@@ -369,7 +369,7 @@ public class GGElement {
     }
     
     public void fireEvent(Element element){
-        OpenGG.addExecutable(() -> {
+        OpenGG.asyncExec(() -> {
             view.cvm.fireEvent(element);
             view.cvm.updateLocal();  
         });
