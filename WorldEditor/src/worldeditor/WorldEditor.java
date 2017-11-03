@@ -544,7 +544,7 @@ public class WorldEditor extends GGApplication implements Actionable {
         OpenGG.asyncExec(() -> {
             Component ncomp = cvm.getFromInitializer(vmi);
             WorldEngine.getCurrent().attach(ncomp);
-            WorldEngine.rescanCurrent();
+            WorldEngine.useWorld(WorldEngine.getCurrent());
             display.asyncExec(() -> {
                 refreshComponentList();
                 useTreeItem(tree.getItems()[tree.getItems().length - 1]);
