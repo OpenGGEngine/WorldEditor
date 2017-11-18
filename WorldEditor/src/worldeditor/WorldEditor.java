@@ -549,6 +549,7 @@ public class WorldEditor extends GGApplication implements Actionable {
             WorldEngine.getCurrent().attach(ncomp);
             WorldEngine.getCurrent().rescanRenderables();
             WorldEngine.addRenderables(WorldEngine.getCurrent());
+            WorldEngine.useWorld(WorldEngine.getCurrent());
             display.asyncExec(() -> {
                 refreshComponentList();
                 useTreeItem(tree.getItems()[tree.getItems().length - 1]);
