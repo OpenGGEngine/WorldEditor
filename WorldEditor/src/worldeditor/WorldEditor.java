@@ -9,6 +9,7 @@ import com.opengg.core.engine.BindController;
 import com.opengg.core.engine.GGApplication;
 import com.opengg.core.engine.GGConsole;
 import com.opengg.core.engine.OpenGG;
+import com.opengg.core.engine.ProjectionData;
 import com.opengg.core.engine.RenderEngine;
 import com.opengg.core.engine.Resource;
 import com.opengg.core.engine.WorldEngine;
@@ -97,7 +98,7 @@ public class WorldEditor extends GGApplication implements Actionable {
         ui.start();
 
         try {
-            Thread.sleep(500);
+            Thread.sleep(1000);
         } catch (InterruptedException ex) {
         }
 
@@ -299,6 +300,7 @@ public class WorldEditor extends GGApplication implements Actionable {
 
     @Override
     public void setup() {
+        ViewModelComponentRegistry.initialize();
         ViewModelComponentRegistry.createRegisters();
         WorldEngine.getCurrent().setEnabled(false);
 
@@ -339,11 +341,12 @@ public class WorldEditor extends GGApplication implements Actionable {
 
         BindController.setOnlyController(transmitter);
         WorldEngine.shouldUpdate(false);
+        RenderEngine.setProjectionData(ProjectionData.getPerspective(100, 0.2f, 3000f));
     }
 
     @Override
     public void render() {
-        ShaderController.setPerspective(90, OpenGG.getWindow().getRatio(), 0.2f, 3000f);
+        //ShaderController.setPerspective(90, OpenGG.getWindow().getRatio(), 0.2f, 3000f);
     }
 
     int i = 0;
@@ -544,7 +547,8 @@ public class WorldEditor extends GGApplication implements Actionable {
         OpenGG.asyncExec(() -> {
             Component ncomp = cvm.getFromInitializer(vmi);
             WorldEngine.getCurrent().attach(ncomp);
-            WorldEngine.rescanCurrent();
+            WorldEngine.getCurrent().rescanRenderables();
+            WorldEngine.addRenderables(WorldEngine.getCurrent());
             display.asyncExec(() -> {
                 refreshComponentList();
                 useTreeItem(tree.getItems()[tree.getItems().length - 1]);
