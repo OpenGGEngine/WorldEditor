@@ -7,17 +7,23 @@ package worldeditor;
 
 import com.opengg.core.engine.BindController;
 import com.opengg.core.engine.GGApplication;
-import com.opengg.core.engine.GGConsole;
+import com.opengg.core.console.GGConsole;
 import com.opengg.core.engine.OpenGG;
 import com.opengg.core.engine.ProjectionData;
 import com.opengg.core.engine.RenderEngine;
+import com.opengg.core.engine.RenderGroup;
+import com.opengg.core.engine.RenderPath;
 import com.opengg.core.engine.Resource;
 import com.opengg.core.engine.WorldEngine;
 import com.opengg.core.extension.ExtensionManager;
 import com.opengg.core.io.ControlType;
 import static com.opengg.core.io.input.keyboard.Key.*;
+import com.opengg.core.math.Matrix4f;
 import com.opengg.core.math.Quaternionf;
 import com.opengg.core.math.Vector3f;
+import com.opengg.core.math.Vector3fm;
+import com.opengg.core.model.Model;
+import com.opengg.core.render.drawn.Drawable;
 import com.opengg.core.render.shader.ShaderController;
 import com.opengg.core.render.texture.Texture;
 import com.opengg.core.render.window.WindowInfo;
@@ -83,9 +89,9 @@ public class WorldEditor extends GGApplication implements Actionable {
     private static Composite addregion;
     private static boolean refresh;
     private static Composite treearea;
-    private static Vector3f control = new Vector3f();
-    private static Vector3f controlrot = new Vector3f();
-    private static Vector3f currot = new Vector3f();
+    private static Vector3fm control = new Vector3fm();
+    private static Vector3fm controlrot = new Vector3fm();
+    private static Vector3fm currot = new Vector3fm();
     private static float rotspeed = 30;
     private static Camera cam;
     private static EditorTransmitter transmitter;
@@ -159,6 +165,7 @@ public class WorldEditor extends GGApplication implements Actionable {
                 String npath = dialog.open();
                 Resource.setDefaultPath(npath);
                 shell.setText("World Editor: " + npath);
+                GGConsole.log("Switched game path to " + npath);
             }
         });
 
@@ -172,8 +179,8 @@ public class WorldEditor extends GGApplication implements Actionable {
                 dialog.setFilterExtensions(new String[]{"*.jar"});
                 dialog.setFilterPath(Resource.getAbsoluteFromLocal(""));
                 String result = dialog.open();
+                if(result == null || result.isEmpty()) return;
                 ViewModelComponentRegistry.clearRegistry();
-                ViewModelComponentRegistry.initialize();
                 ViewModelComponentRegistry.registerAllFromJar(result);
                 ViewModelComponentRegistry.createRegisters();
                 updateAddRegion();
@@ -342,6 +349,16 @@ public class WorldEditor extends GGApplication implements Actionable {
         BindController.setOnlyController(transmitter);
         WorldEngine.shouldUpdate(false);
         RenderEngine.setProjectionData(ProjectionData.getPerspective(100, 0.2f, 3000f));
+        Model m = Resource.getModel("sphere");
+        Drawable pos = m.getDrawable();
+        RenderGroup group = new RenderGroup("renderer");
+        group.add(pos);
+        RenderEngine.addRenderPath(new RenderPath("editorrender", ()->{
+            for(Component c : WorldEngine.getCurrent().getAll()){
+                pos.setMatrix(new Matrix4f().translate(c.getPosition()).rotate(c.getRotation()).scale(new Vector3f(0.4f)));
+                group.render();
+            }
+        }));
     }
 
     @Override
@@ -376,9 +393,9 @@ public class WorldEditor extends GGApplication implements Actionable {
         currot.z += controlrot.z * rotspeed * delta;
         cam.setRot(new Quaternionf(new Vector3f(0, currot.y, currot.z)).multiply(new Quaternionf(new Vector3f(currot.x, 0, 0))));
 
-        Vector3f nvector = control.multiply(delta * 15);
+        Vector3f nvector = new Vector3f(control).multiply(delta * 5);
         nvector = cam.getRot().invert().transform(nvector);
-        cam.setPos(cam.getPos().addThis(nvector.multiply(10)));
+        cam.setPos(cam.getPos().add(nvector.multiply(10)));
     }
 
     public static void useTreeItem(TreeItem item) {
@@ -481,7 +498,7 @@ public class WorldEditor extends GGApplication implements Actionable {
 
                 try {
                     ViewModel cvm = (ViewModel) vmclazz.newInstance();
-                    Initializer vmi = cvm.getInitializer();
+                    Initializer vmi = cvm.getInitializer(new Initializer());
                     if (vmi.elements.isEmpty()) {
                         createComponent(vmi, cvm);
                     } else {
@@ -697,8 +714,8 @@ public class WorldEditor extends GGApplication implements Actionable {
                     controlrot.x += 1;
                     break;
                 case "clear":
-                    controlrot = new Vector3f();
-                    control = new Vector3f();
+                    controlrot = new Vector3fm();
+                    control = new Vector3fm();
                     break;
             }
         } else {

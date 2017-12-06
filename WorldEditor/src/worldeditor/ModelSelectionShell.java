@@ -89,10 +89,13 @@ public class ModelSelectionShell {
             public void widgetSelected(SelectionEvent e) {
                 String mname = newtex.getText();
                 OpenGG.asyncExec(() -> {
-                    if(new File(mname).isAbsolute())
+                    if(new File(mname).isAbsolute()){
                         data.model = ModelLoader.loadModel(mname);
-                    else
-                        data.model = Resource.getModel(newtex.getText());
+                    }else{
+                        
+                        data.model = Resource.getModel(mname);
+                    }
+                        
                     nshell.getDisplay().asyncExec(() -> {
                         nshell.dispose();
                     });

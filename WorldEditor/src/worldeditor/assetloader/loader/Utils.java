@@ -34,9 +34,9 @@ public class Utils {
         int size = list != null ? list.size() * 3 : 0;
         float[] floatArr = new float[size];
         for (int i = 0; i < size/3; i++) {
-            floatArr[i*3] = list.get(i).x;
-            floatArr[i*3+1] = list.get(i).y;
-            floatArr[i*3+2] = list.get(i).z;
+            floatArr[i*3] = list.get(i).x();
+            floatArr[i*3+1] = list.get(i).y();
+            floatArr[i*3+2] = list.get(i).z();
         }
         return floatArr;
     }

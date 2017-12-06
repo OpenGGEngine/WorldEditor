@@ -5,7 +5,7 @@
  */
 package worldeditor.assetloader;
 
-import com.opengg.core.engine.GGConsole;
+import com.opengg.core.console.GGConsole;
 import com.opengg.core.model.Model;
 import com.opengg.core.model.ModelManager;
 import com.opengg.core.util.GGOutputStream;

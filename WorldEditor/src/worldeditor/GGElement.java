@@ -336,9 +336,9 @@ public class GGElement {
             ((Text)all.get(4)).setText(Float.toString(data.w));
         }else if(element.type == Element.VECTOR3F){
             Vector3f data = (Vector3f)element.value;
-            ((Text)all.get(1)).setText(Float.toString(data.x));
-            ((Text)all.get(2)).setText(Float.toString(data.y));
-            ((Text)all.get(3)).setText(Float.toString(data.z));
+            ((Text)all.get(1)).setText(Float.toString(data.x()));
+            ((Text)all.get(2)).setText(Float.toString(data.y()));
+            ((Text)all.get(3)).setText(Float.toString(data.z()));
         }else if(element.type == Element.VECTOR2F){
             Vector2f data = (Vector2f)element.value;
             ((Text)all.get(1)).setText(Float.toString(data.x));
