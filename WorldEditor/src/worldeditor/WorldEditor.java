@@ -97,6 +97,7 @@ public class WorldEditor extends GGApplication implements Actionable {
     private static float rotspeed = 30;
     private static Camera cam;
     private static EditorTransmitter transmitter;
+    private static Text consoletext;
 
     public static void main(String[] args) {
         Thread ui = new Thread(() -> {
@@ -287,10 +288,10 @@ public class WorldEditor extends GGApplication implements Actionable {
         console.setMinHeight(120);
         console.layout();
 
-        Text consoletext = new Text(console, SWT.READ_ONLY | SWT.MULTI);
-        /*
+        consoletext = new Text(console, SWT.READ_ONLY | SWT.MULTI);
+        
          console.setContent(consoletext);
-         PrintStream oldout = System.out;    
+         /*PrintStream oldout = System.out;    
          OutputStream out = new OutputStream() {
          @Override
          public void write(int b) throws IOException {
@@ -313,7 +314,7 @@ public class WorldEditor extends GGApplication implements Actionable {
         ViewModelComponentRegistry.createRegisters();
         WorldEngine.getCurrent().setEnabled(false);
 
-        display.asyncExec(() -> {
+        display.asyncExec(() -> { 
             initSWT2();
             refreshComponentList();
 
@@ -413,9 +414,13 @@ public class WorldEditor extends GGApplication implements Actionable {
         currot.z += controlrot.z * rotspeed * delta;
         cam.setRot(new Quaternionf(new Vector3f(0, currot.y, currot.z)).multiply(new Quaternionf(new Vector3f(currot.x, 0, 0))));
 
-        Vector3f nvector = new Vector3f(control).multiply(delta * 5);
-        nvector = cam.getRot().invert().transform(nvector);
+        Vector3f nvector = cam.getRot().invert().transform(new Vector3f(control).multiply(delta * 5));
+
         cam.setPos(cam.getPos().add(nvector.multiply(10)));
+        display.asyncExec(()->{
+            consoletext.setText(cam.getPos().add(nvector.multiply(10)).toString());
+        });
+        
     }
 
     public static void useTreeItem(TreeItem item) {
@@ -498,9 +503,14 @@ public class WorldEditor extends GGApplication implements Actionable {
 
     public static void updateAddRegion() {
         clearArea(addregion);
-
+        try{
+            Thread.sleep(100);
+        }catch(Exception e){
+            
+        }
+        
         List classes = new List(addregion, SWT.V_SCROLL);
-
+        addregion.layout();
         for (ViewModelComponentRegisterInfoContainer info : ViewModelComponentRegistry.getAllRegistries()) {
             classes.add(info.component.getSimpleName());
         }
