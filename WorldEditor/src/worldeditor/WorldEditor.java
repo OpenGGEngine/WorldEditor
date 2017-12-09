@@ -8,6 +8,7 @@ package worldeditor;
 import com.opengg.core.engine.BindController;
 import com.opengg.core.engine.GGApplication;
 import com.opengg.core.console.GGConsole;
+import com.opengg.core.engine.Executable;
 import com.opengg.core.engine.OpenGG;
 import com.opengg.core.engine.ProjectionData;
 import com.opengg.core.engine.RenderEngine;
@@ -23,6 +24,7 @@ import com.opengg.core.math.Quaternionf;
 import com.opengg.core.math.Vector3f;
 import com.opengg.core.math.Vector3fm;
 import com.opengg.core.model.Model;
+import com.opengg.core.render.Renderable;
 import com.opengg.core.render.drawn.Drawable;
 import com.opengg.core.render.shader.ShaderController;
 import com.opengg.core.render.texture.Texture;
@@ -353,12 +355,30 @@ public class WorldEditor extends GGApplication implements Actionable {
         Drawable pos = m.getDrawable();
         RenderGroup group = new RenderGroup("renderer");
         group.add(pos);
+        
         RenderEngine.addRenderPath(new RenderPath("editorrender", ()->{
             for(Component c : WorldEngine.getCurrent().getAll()){
+                if(c instanceof Renderable) continue;
                 pos.setMatrix(new Matrix4f().translate(c.getPosition()).rotate(c.getRotation()).scale(new Vector3f(0.4f)));
                 group.render();
             }
         }));
+
+        Executable autosave = new Executable(){ 
+            @Override
+            public void execute() {
+                try{
+                    GGConsole.log("Autosaving world to autosave.bwf...");
+                    WorldEngine.saveWorld(WorldEngine.getCurrent(), "autosave.bwf");
+                    GGConsole.log("Autosave completed!");
+                    OpenGG.asyncExec(60*3, this);
+                }catch(Exception e){
+                    GGConsole.warn("Failed to autosave world!");
+                }
+            }
+        };
+        
+        OpenGG.asyncExec(60*5, autosave);
     }
 
     @Override
