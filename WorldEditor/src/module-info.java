@@ -4,10 +4,17 @@
  * and open the template in the editor.
  */
 module WorldEditor {
+    requires org.lwjgl.assimp;
+    requires org.lwjgl.assimp.natives;
+    requires org.lwjgl;
+    requires org.lwjgl.natives;
     requires com.opengg.core;
     requires com.opengg.console;
     requires com.opengg.math;
     requires swt;
     requires com.opengg.swt;
-    requires org.lwjgl.assimp;
+
+
+
+    requires javafx.base;
 }

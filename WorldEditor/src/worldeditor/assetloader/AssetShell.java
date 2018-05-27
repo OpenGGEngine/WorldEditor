@@ -5,6 +5,7 @@
  */
 package worldeditor.assetloader;
 
+import assetloader2.ModelLoader12;
 import com.opengg.core.console.GGConsole;
 import com.opengg.core.model.Model;
 import com.opengg.core.model.ModelManager;
@@ -90,8 +91,9 @@ public class AssetShell {
                     String[] filterExt = {"*.obj; *.3ds; *.dae; *.fbx; *.stl; *.lwo; *.blend"};
                     fd.setFilterExtensions(filterExt);
                     String path = fd.open();
-                    
-                    if(path == null || path.isEmpty())
+                    System.out.println(path);
+                    ModelLoader12.loadModel(new File(path));
+                 /*   if(path == null || path.isEmpty())
                         return;
                     
                     GGConsole.log("Parsing model at " + path + "...");
@@ -117,11 +119,12 @@ public class AssetShell {
                         GGConsole.error("Failed to write model!");
                         ex.printStackTrace();
                     }
-    
+*/    
                 } catch (Exception ex) {
                     GGConsole.error("Error during model loading! " + ex.toString());
                     ex.printStackTrace();
                 }
+
             }
 
             @Override
