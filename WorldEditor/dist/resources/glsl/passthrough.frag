@@ -1,14 +1,7 @@
-#version 410 core
+@version 4.2
+@include stdfrag.ggsl
 
-layout(location = 0) out vec4 fcolor;
-
-in vertexData{
-    vec4 vertexColor;
-    vec2 textureCoord;
-    vec4 pos;
-    vec3 norm;
-};
-
-void main() {   
-    fcolor = vec4(1,1,1,1);
+@code
+main() {
+    fcolor = vec4(1,0,0,1);
 }

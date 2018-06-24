@@ -8,9 +8,8 @@ package worldeditor;
 import com.opengg.core.engine.OpenGG;
 import com.opengg.core.engine.Resource;
 import com.opengg.core.model.Model;
-import com.opengg.core.model.ModelLoader;
 import com.opengg.core.model.ModelManager;
-import java.io.File;
+import com.opengg.core.util.LambdaContainer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.events.SelectionEvent;
@@ -28,9 +27,9 @@ import org.eclipse.swt.widgets.Text;
  * @author Javier
  */
 public class ModelSelectionShell {
-    Shell nshell;
-    boolean done;
-    ModelInnerClassFix data = new ModelInnerClassFix();    
+    private Shell nshell;
+    private boolean done;
+    private LambdaContainer<Model> container = new LambdaContainer<>();
     
     public static Model getModel(Shell parent){
         ModelSelectionShell shell = new ModelSelectionShell(parent);
@@ -40,7 +39,7 @@ public class ModelSelectionShell {
                 shell.nshell.getDisplay().sleep();
         }
         
-        return shell.data.model;
+        return shell.container.value;
     }
     
     public ModelSelectionShell(Shell parent){
@@ -65,7 +64,7 @@ public class ModelSelectionShell {
                 @Override
                 public void widgetSelected(SelectionEvent e) {
                     String name = button.getText();
-                    data.model = ModelManager.getModel(name);
+                    container.value = ModelManager.getModel(name);
                     nshell.dispose();
                 }
 
@@ -89,12 +88,7 @@ public class ModelSelectionShell {
             public void widgetSelected(SelectionEvent e) {
                 String mname = newtex.getText();
                 OpenGG.asyncExec(() -> {
-                    if(new File(mname).isAbsolute()){
-                        data.model = ModelLoader.loadModel(mname);
-                    }else{
-                        
-                        data.model = Resource.getModel(mname);
-                    }
+                    container.value = Resource.getModel(mname);
                         
                     nshell.getDisplay().asyncExec(() -> {
                         nshell.dispose();

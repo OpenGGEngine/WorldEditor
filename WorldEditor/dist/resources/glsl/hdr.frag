@@ -1,26 +1,20 @@
-#version 410 core
+@version 4.2
+@include stdfrag.ggsl
 
-layout(location = 0) out vec4 fcolor;
-
-in vertexData{
-    vec4 vertexColor;
-    vec2 textureCoord;
-    vec4 pos;
-    vec3 norm;
-};
+@fields
+uniform float exposure;
+uniform float gamma;
 
 uniform sampler2D Kd;
-uniform sampler2D Ka;
-uniform float exposure;
 
-void main() {   
-	const float gamma = 2.2;
-    vec3 hdrColor = texture(Kd, textureCoord).rgb;
+@code
+main() {   
+    vec3 color = texture(Kd, textureCoord).rgb;
   
     // Exposure tone mapping
-    vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
-    // Gamma correction 
-    mapped = pow(mapped, vec3(1.0 / gamma));
+    vec3 mapped = vec3(1.0f) - exp(-color * exposure);
+    // Gamma correction
+    mapped = pow(mapped, vec3(1.0f / gamma));
   
-    fcolor = vec4(mapped, 1.0);
+    fcolor = vec4(mapped, 1.0f);
 }

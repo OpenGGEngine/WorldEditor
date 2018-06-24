@@ -42,7 +42,7 @@ public class GGElement {
         this.view = view;
         this.element = element;
         this.editarea = editarea;
-        if(element.type == Element.VECTOR4F){
+        if(element.type == Element.Type.VECTOR4F){
             Label label = new Label(editarea, SWT.NULL);
             label.setText(element.name);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
@@ -82,7 +82,7 @@ public class GGElement {
             v3.addModifyListener(mf);
             v4.addModifyListener(mf);
 
-        }else if(element.type == Element.VECTOR3F){
+        }else if(element.type == Element.Type.VECTOR3F){
             Label label = new Label(editarea, SWT.NULL);
             label.setText(element.name);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
@@ -118,7 +118,7 @@ public class GGElement {
             
             Label fillspace = new Label(editarea, SWT.NULL);
             fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == Element.VECTOR2F){
+        }else if(element.type == Element.Type.VECTOR2F){
             Label label = new Label(editarea, SWT.NULL);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(label);
@@ -147,7 +147,7 @@ public class GGElement {
 
             Label fillspace = new Label(editarea, SWT.NULL);
             fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 2, 1));
-        }else if(element.type == Element.FLOAT){
+        }else if(element.type == Element.Type.FLOAT){
             Label label = new Label(editarea, SWT.NULL);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(label);
@@ -169,7 +169,7 @@ public class GGElement {
 
             Label fillspace = new Label(editarea, SWT.NULL);
             fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
-        }else if(element.type == Element.INTEGER){
+        }else if(element.type == Element.Type.INTEGER){
             Label label = new Label(editarea, SWT.NULL);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(label);
@@ -196,7 +196,7 @@ public class GGElement {
 
             Label fillspace3 = new Label(editarea, SWT.NULL);
             fillspace3.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == Element.STRING){
+        }else if(element.type == Element.Type.STRING){
             Label label = new Label(editarea, SWT.NULL);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(label);
@@ -214,7 +214,7 @@ public class GGElement {
 
             Label fillspace = new Label(editarea, SWT.NULL);
             fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == Element.BOOLEAN){
+        }else if(element.type == Element.Type.BOOLEAN){
             Label label = new Label(editarea, SWT.NULL);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(label);
@@ -237,7 +237,7 @@ public class GGElement {
 
             Label fillspace = new Label(editarea, SWT.NULL);
             fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
-        }else if(element.type == Element.TEXTURE){
+        }else if(element.type == Element.Type.TEXTURE){
             Label label = new Label(editarea, SWT.NULL);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(label);
@@ -264,7 +264,7 @@ public class GGElement {
 
             Label fillspace = new Label(editarea, SWT.NULL);
             fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == Element.MODEL){
+        }else if(element.type == Element.Type.MODEL){
             Label label = new Label(editarea, SWT.NULL);
             label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
             all.add(label);
@@ -328,35 +328,35 @@ public class GGElement {
         }
         if(!element.forceupdate && !force) return;
         
-        if(element.type == Element.VECTOR4F){
+        if(element.type == Element.Type.VECTOR4F){
             Vector4f data = (Vector4f)element.value;
             ((Text)all.get(1)).setText(Float.toString(data.x));
             ((Text)all.get(2)).setText(Float.toString(data.y));
             ((Text)all.get(3)).setText(Float.toString(data.z));
             ((Text)all.get(4)).setText(Float.toString(data.w));
-        }else if(element.type == Element.VECTOR3F){
+        }else if(element.type == Element.Type.VECTOR3F){
             Vector3f data = (Vector3f)element.value;
             ((Text)all.get(1)).setText(Float.toString(data.x()));
             ((Text)all.get(2)).setText(Float.toString(data.y()));
             ((Text)all.get(3)).setText(Float.toString(data.z()));
-        }else if(element.type == Element.VECTOR2F){
+        }else if(element.type == Element.Type.VECTOR2F){
             Vector2f data = (Vector2f)element.value;
             ((Text)all.get(1)).setText(Float.toString(data.x));
             ((Text)all.get(2)).setText(Float.toString(data.y));
-        }else if(element.type == Element.FLOAT){
+        }else if(element.type == Element.Type.FLOAT){
             float data = (Float)element.value;
             ((Text)all.get(1)).setText(Float.toString(data));
-        }else if(element.type == Element.INTEGER){
+        }else if(element.type == Element.Type.INTEGER){
             int data = (Integer)element.value;
             ((Text)all.get(1)).setText(Integer.toString(data));
-        }else if(element.type == Element.STRING){
+        }else if(element.type == Element.Type.STRING){
             String data = (String)element.value;
             ((Text)all.get(1)).setText(data);
-        }else if(element.type == Element.BOOLEAN){
+        }else if(element.type == Element.Type.BOOLEAN){
             boolean data = (Boolean)element.value;
             ((Button)all.get(1)).setText(Boolean.toString(data));
             ((Button)all.get(1)).setSelection(data);
-        }else if(element.type == Element.TEXTURE){
+        }else if(element.type == Element.Type.TEXTURE){
             TextureData data = (TextureData)element.value;
             ((Button)all.get(1)).setText(data.source);
         }

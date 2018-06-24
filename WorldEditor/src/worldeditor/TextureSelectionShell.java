@@ -8,6 +8,7 @@ package worldeditor;
 import com.opengg.core.engine.Resource;
 import com.opengg.core.render.texture.TextureData;
 import com.opengg.core.render.texture.TextureManager;
+import com.opengg.core.util.LambdaContainer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.events.SelectionEvent;
@@ -27,7 +28,7 @@ import org.eclipse.swt.widgets.Text;
 public class TextureSelectionShell {
     Shell nshell;
     boolean done;
-    TextureInnerClassFix data = new TextureInnerClassFix();    
+    LambdaContainer<TextureData> container = new LambdaContainer<>();
     
     public static TextureData getData(Shell parent){
         TextureSelectionShell shell = new TextureSelectionShell(parent);
@@ -37,7 +38,7 @@ public class TextureSelectionShell {
                 shell.nshell.getDisplay().sleep();
         }
         
-        return shell.data.data;
+        return shell.container.value;
     }
     
     public TextureSelectionShell(Shell parent){
@@ -62,7 +63,7 @@ public class TextureSelectionShell {
                 @Override
                 public void widgetSelected(SelectionEvent e) {
                     String id = button.getText();
-                    data.data = TextureManager.getTextureData(id);
+                    container.value = TextureManager.getTextureData(id);
                     nshell.dispose();
                 }
 
@@ -84,7 +85,7 @@ public class TextureSelectionShell {
 
             @Override
             public void widgetSelected(SelectionEvent e) {
-                data.data = TextureManager.loadTexture(Resource.getTexturePath(newtex.getText()), true);
+                container.value = Resource.getTextureData(newtex.getText());
                 nshell.dispose();
             }
 

@@ -1,13 +1,13 @@
-#version 410 core
-#define LIGHTNUM 100
+@version 4.2
+@glsl define LIGHTNUM 100
 
-
+@fields
 layout(location = 0) out vec4 fcolor;
 
 in vertexData{
-    vec4 vertexColor;
+    
     vec2 textureCoord;
-    vec4 pos;
+    vec3 pos;
     vec3 norm;
 };
 struct Light
@@ -32,6 +32,7 @@ uniform vec3 camera;
 uniform sampler2D Kd;
 uniform samplerCube cubemap;
 
+
 float trans;
 float specpow;
 vec3 eyedir;
@@ -43,6 +44,7 @@ vec3 diffuse;
 vec4 color;
 vec4 finalcolor;
 
+@code
 void genPhong(){
     eyedir = normalize(camera - pos.xyz);
 

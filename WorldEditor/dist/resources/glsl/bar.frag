@@ -1,11 +1,11 @@
-#version 410 core
-
+@version 4.2
+@fields
 layout(location = 0) out vec4 fcolor;
 
 in vertexData{
-    vec4 vertexColor;
+    
     vec2 textureCoord;
-    vec4 pos;
+    vec3 pos;
     vec3 norm;
 };
 
@@ -13,6 +13,7 @@ uniform sampler2D Kd;
 uniform sampler2D Ka;
 uniform float percent;
 
+@code
 vec4 getTex(sampler2D tname){
     
 	

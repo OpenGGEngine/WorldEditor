@@ -1,5 +1,6 @@
-#version 410 core
-
+@version 4.2
+@glsl define MAX_JOINTS 100
+@fields
 in vec3 normal;
 in vec4 weights;
 in vec2 texcoord;
@@ -12,14 +13,11 @@ out gl_PerVertex{
 };
 
 out vertexData{
-	vec4 vertexColor;
+	
 	vec2 textureCoord;
 	vec3 pos;
 	vec3 norm;
 };
-
- const int MAX_WEIGHTS = 4;
- const int MAX_JOINTS = 100;
 
 uniform mat4 model;
 uniform mat4 jointsMatrix[MAX_JOINTS];
@@ -32,10 +30,13 @@ uniform int mode;
 uniform int inst;
 uniform float divAmount;
 
+
+const int MAX_WEIGHTS = 4;
+
+@code
 void main() {
 
     mat4 modelView = view * model;
-    vertexColor = color;
     textureCoord = texcoord;
 	vec4 initPos = vec4(0, 0, 0, 0);
     vec4 initNormal = vec4(0, 0, 0, 0);

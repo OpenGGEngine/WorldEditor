@@ -5,7 +5,7 @@
  */
 package worldeditor;
 
-import com.opengg.core.engine.WorldEngine;
+import com.opengg.core.world.WorldEngine;
 import com.opengg.core.world.components.viewmodel.ViewModel;
 import com.opengg.core.world.components.viewmodel.Element;
 import java.util.ArrayList;
@@ -22,9 +22,9 @@ import org.eclipse.swt.widgets.Composite;
  * @author Javier
  */
 public class GGView {
-    public ViewModel cvm;
-    boolean complete = false;
-    List<GGElement> elements = new ArrayList<>();
+    private ViewModel cvm;
+    private boolean complete;
+    private List<GGElement> elements = new ArrayList<>();
     
     public GGView(Composite editarea, ViewModel cvm){
         this.cvm = cvm;
@@ -58,5 +58,9 @@ public class GGView {
         for(GGElement element : elements){
             element.update();
         }
+    }
+
+    public boolean isComplete(){
+        return complete;
     }
 }

@@ -1,16 +1,10 @@
-#version 410 core
+@version 4.2
+@include stdfrag.ggsl
 
-layout(location = 0) out vec4 fcolor;
-
-in vertexData{
-    vec4 vertexColor;
-    vec2 textureCoord;
-    vec4 pos;
-    vec3 norm;
-};
-
+@fields
 uniform sampler2D Kd;
 
+@code
 void main() {   
     fcolor = texture(Kd, textureCoord);
 }
