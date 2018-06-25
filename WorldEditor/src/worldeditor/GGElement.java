@@ -12,305 +12,226 @@ import com.opengg.core.math.Vector4f;
 import com.opengg.core.model.Model;
 import com.opengg.core.render.texture.TextureData;
 import com.opengg.core.world.components.viewmodel.Element;
+
+import java.awt.*;
+import java.awt.event.ItemEvent;
+import java.beans.PropertyChangeListener;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
-import org.eclipse.swt.SWT;
-import org.eclipse.swt.events.ModifyEvent;
-import org.eclipse.swt.events.ModifyListener;
-import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.events.SelectionListener;
-import org.eclipse.swt.layout.GridData;
-import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Control;
-import org.eclipse.swt.widgets.Label;
-import org.eclipse.swt.widgets.Text;
-import static worldeditor.WorldEditor.addDecimalListener;
-import static worldeditor.WorldEditor.addIntegerListener;
+
+import javax.swing.*;
+
+import static java.awt.GridBagConstraints.*;
 
 /**
  *
  * @author Javier
  */
-public class GGElement {
+public class GGElement extends JPanel{
     public Element element;
     public GGView view;
-    public List<Control> all = new ArrayList<>();
-    public Composite editarea;
+    public List<Component> all = new ArrayList<>();
     
-    public GGElement(Composite editarea, Element element, GGView view){
-        this.view = view;
+    public GGElement(Element element, GGView view) {
+        super();
         this.element = element;
-        this.editarea = editarea;
-        if(element.type == Element.Type.VECTOR4F){
-            Label label = new Label(editarea, SWT.NULL);
-            label.setText(element.name);
-            label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            all.add(label);
-            
-            Text v1 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
-            v1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            addDecimalListener(v1);
+        this.view = view;
+
+        this.setLayout(new GridLayout(1,0));//new BoxLayout(this, BoxLayout.LINE_AXIS));
+        this.setBorder(BorderFactory.createTitledBorder(element.name));
+        this.setSize(400, 100);
+        if (element.type == Element.Type.VECTOR4F) {
+
+            JFormattedTextField v1 = new JFormattedTextField(new DecimalFormat());
+            this.add(v1);
             all.add(v1);
-            
-            Text v2 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
-            v2.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            addDecimalListener(v2);
+
+            JFormattedTextField v2 = new JFormattedTextField(new DecimalFormat());
+            this.add(v2);
             all.add(v2);
 
-            Text v3 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
-            v3.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            addDecimalListener(v3);
+            JFormattedTextField v3 = new JFormattedTextField(new DecimalFormat());
+            this.add(v3);
             all.add(v3);
 
-            Text v4 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
-            v4.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            addDecimalListener(v4);
+            JFormattedTextField v4 = new JFormattedTextField(new DecimalFormat());
+            this.add(v4);
+
             all.add(v4);
-            
+
             update(true);
-            
-            ModifyListener mf = (ModifyEvent e) -> {
-                try{
+
+            PropertyChangeListener mf = (e) -> {
+                try {
                     Vector4f nvector = new Vector4f(Float.parseFloat(v1.getText()), Float.parseFloat(v2.getText()), Float.parseFloat(v3.getText()), Float.parseFloat(v4.getText()));
                     element.value = nvector;
-                    if(view != null && element.autoupdate) fireEvent(element);
-                }catch(Exception ex){}
+                    if (view != null && element.autoupdate) fireEvent(element);
+                } catch (Exception ex) {
+                }
             };
-            v1.addModifyListener(mf);
-            v2.addModifyListener(mf);
-            v3.addModifyListener(mf);
-            v4.addModifyListener(mf);
+            v1.addPropertyChangeListener(mf);
+            v2.addPropertyChangeListener(mf);
+            v3.addPropertyChangeListener(mf);
+            v4.addPropertyChangeListener(mf);
 
-        }else if(element.type == Element.Type.VECTOR3F){
-            Label label = new Label(editarea, SWT.NULL);
-            label.setText(element.name);
-            label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            all.add(label);
+        } else if (element.type == Element.Type.VECTOR3F) {
 
-            Text v1 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
-            v1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            addDecimalListener(v1);
+            JFormattedTextField v1 = new JFormattedTextField(new DecimalFormat());
+            this.add(v1);
             all.add(v1);
 
-            Text v2 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
-            v2.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            addDecimalListener(v2);
+            JFormattedTextField v2 = new JFormattedTextField(new DecimalFormat());
+            this.add(v2);
             all.add(v2);
 
-            Text v3 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
-            v3.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            addDecimalListener(v3);
+            JFormattedTextField v3 = new JFormattedTextField(new DecimalFormat());
+            this.add(v3);
             all.add(v3);
 
             update(true);
-            
-            ModifyListener mf = (ModifyEvent e) -> {
-                try{
+
+            PropertyChangeListener mf = (e) -> {
+                try {
                     Vector3f nvector = new Vector3f(Float.parseFloat(v1.getText()), Float.parseFloat(v2.getText()), Float.parseFloat(v3.getText()));
                     element.value = nvector;
-                    if(view != null && element.autoupdate) fireEvent(element);
-                }catch(Exception ex){}
+                    if (view != null && element.autoupdate) fireEvent(element);
+                } catch (Exception ex) {
+                }
             };
-            v1.addModifyListener(mf);
-            v2.addModifyListener(mf);
-            v3.addModifyListener(mf);
-            
-            Label fillspace = new Label(editarea, SWT.NULL);
-            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == Element.Type.VECTOR2F){
-            Label label = new Label(editarea, SWT.NULL);
-            label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            all.add(label);
-            
-            Text v1 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
-            v1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            addDecimalListener(v1);
+            v1.addPropertyChangeListener(mf);
+            v2.addPropertyChangeListener(mf);
+            v3.addPropertyChangeListener(mf);
+        } else if (element.type == Element.Type.VECTOR2F) {
+
+            JFormattedTextField v1 = new JFormattedTextField(new DecimalFormat());
+            this.add(v1);
             all.add(v1);
 
-            Text v2 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
-            v2.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            addDecimalListener(v2);
+            JFormattedTextField v2 = new JFormattedTextField(new DecimalFormat());
+            this.add(v2);
             all.add(v2);
-            
+
             update(true);
-            
-            ModifyListener mf = (ModifyEvent e) -> {
-                try{
+
+            PropertyChangeListener mf = (e) -> {
+                try {
                     Vector2f nvector = new Vector2f(Float.parseFloat(v1.getText()), Float.parseFloat(v2.getText()));
                     element.value = nvector;
-                    if(view != null && element.autoupdate) fireEvent(element);
-                }catch(Exception ex){}
+                    if (view != null && element.autoupdate) fireEvent(element);
+                } catch (Exception ex) {
+                }
             };
-            v1.addModifyListener(mf);
-            v2.addModifyListener(mf);
+            v1.addPropertyChangeListener(mf);
+            v2.addPropertyChangeListener(mf);
 
-            Label fillspace = new Label(editarea, SWT.NULL);
-            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 2, 1));
-        }else if(element.type == Element.Type.FLOAT){
-            Label label = new Label(editarea, SWT.NULL);
-            label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            all.add(label);
-            
-            Text v1 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
-            v1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            addDecimalListener(v1);
+        } else if (element.type == Element.Type.FLOAT) {
+
+            JFormattedTextField v1 = new JFormattedTextField(new DecimalFormat());
+            this.add(v1);
             all.add(v1);
-            
+
             update(true);
-            
-            v1.addModifyListener((e) -> {
-                try{
+
+            v1.addPropertyChangeListener((e) -> {
+                try {
                     element.value = Float.parseFloat(v1.getText());
-                    if(view != null && element.autoupdate) fireEvent(element);
-                }catch(Exception ex){}
+                    if (view != null && element.autoupdate) fireEvent(element);
+                } catch (Exception ex) {
+                }
             });
-            
 
-            Label fillspace = new Label(editarea, SWT.NULL);
-            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
-        }else if(element.type == Element.Type.INTEGER){
-            Label label = new Label(editarea, SWT.NULL);
-            label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            all.add(label);
 
-            Text v1 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
-            v1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            addIntegerListener(v1);
+            JLabel fillspace = new JLabel();
+            this.add(fillspace, new GridBagConstraints(RELATIVE, 0, 3, 1, 0.5, 0.5, CENTER, BOTH, new Insets(5,5,5,5), 2, 2));
+        } else if (element.type == Element.Type.INTEGER) {
+
+            JFormattedTextField v1 = new JFormattedTextField(NumberFormat.getIntegerInstance());
+            this.add(v1);
             all.add(v1);
-            
+
             update(true);
-            
-            v1.addModifyListener((e) -> {
-                try{
+
+            v1.addPropertyChangeListener((e) -> {
+                try {
                     element.value = Integer.parseInt(v1.getText());
-                    if(view != null && element.autoupdate) fireEvent(element);
-                }catch(Exception ex){}    
+                    if (view != null && element.autoupdate) fireEvent(element);
+                } catch (Exception ex) {
+                }
             });
-            
-            Label fillspace = new Label(editarea, SWT.NULL);
-            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
+        } else if (element.type == Element.Type.STRING) {
 
-            Label fillspace2 = new Label(editarea, SWT.NULL);
-            fillspace2.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-
-            Label fillspace3 = new Label(editarea, SWT.NULL);
-            fillspace3.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == Element.Type.STRING){
-            Label label = new Label(editarea, SWT.NULL);
-            label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            all.add(label);
-
-            Text v1 = new Text(editarea, SWT.SINGLE | SWT.BORDER);
-            v1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
+            JTextField v1 = new JTextField();
+            this.add(v1, new GridBagConstraints(RELATIVE, 0, 3, 1, 0.5, 0.5, CENTER, BOTH, new Insets(5,5,5,5), 2, 2));
             all.add(v1);
-            
+
             update(true);
-            
-            v1.addModifyListener((e) -> {
+
+            v1.addPropertyChangeListener((e) -> {
                 element.value = v1.getText();
-                if(view != null && element.autoupdate) fireEvent(element);
+                if (view != null && element.autoupdate) fireEvent(element);
             });
 
-            Label fillspace = new Label(editarea, SWT.NULL);
-            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == Element.Type.BOOLEAN){
-            Label label = new Label(editarea, SWT.NULL);
-            label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            all.add(label);
+        } else if (element.type == Element.Type.BOOLEAN) {
 
-            Button button = new Button(editarea, SWT.TOGGLE);
-            button.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
+            JToggleButton button = new JToggleButton();
+            this.add(button);
             all.add(button);
-            
-            update(true);
-            
-            button.addSelectionListener(new SelectionListener(){
-                @Override
-                public void widgetSelected(SelectionEvent e) {
-                    element.value = button.getSelection();
-                    if(view != null && element.autoupdate) fireEvent(element);      
-                }
 
-                @Override public void widgetDefaultSelected(SelectionEvent e) {}
+            update(true);
+
+            button.addItemListener(e -> {
+                element.value = e.getStateChange() == ItemEvent.SELECTED;
+                button.setText(e.getStateChange() == ItemEvent.SELECTED ? "True" : "False");
+                if (view != null && element.autoupdate) fireEvent(element);
             });
 
-            Label fillspace = new Label(editarea, SWT.NULL);
-            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
-        }else if(element.type == Element.Type.TEXTURE){
-            Label label = new Label(editarea, SWT.NULL);
-            label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            all.add(label);
+        } else if (element.type == Element.Type.TEXTURE) {
 
-            Button button = new Button(editarea, SWT.PUSH);
-            button.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
-            button.setText("Choose Texture");
+            JButton button = new JButton("Choose Texture");
+            this.add(button);
             all.add(button);
-            
+
             update(true);
-            
-            button.addSelectionListener(new SelectionListener(){
-                @Override
-                public void widgetSelected(SelectionEvent e) {
-                    TextureData data = TextureSelectionShell.getData(editarea.getShell());
-                    if(data == null) return;
+
+            button.addActionListener(e ->
+                OpenGG.asyncExec(() -> {
+                    TextureData data = TextureSelectionDialog.getData(SwingUtilities.getWindowAncestor(this));
+                    if (data == null) return;
+
                     element.value = data;
-                    if(view != null && element.autoupdate) fireEvent(element);
+                    if (view != null && element.autoupdate) fireEvent(element);
                     update(true);
-                }
+                }));
 
-                @Override public void widgetDefaultSelected(SelectionEvent e) {}
-            });
+        } else if (element.type == Element.Type.MODEL) {
 
-            Label fillspace = new Label(editarea, SWT.NULL);
-            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else if(element.type == Element.Type.MODEL){
-            Label label = new Label(editarea, SWT.NULL);
-            label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            all.add(label);
-
-            Button button = new Button(editarea, SWT.PUSH);
-            button.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 3, 1));
-            button.setText("Choose Model");
+            JButton button = new JButton("Choose Model");
+            this.add(button);
             all.add(button);
-            
+
             update(true);
-            
-            button.addSelectionListener(new SelectionListener(){
-                @Override
-                public void widgetSelected(SelectionEvent e) {
-                    Model model = ModelSelectionShell.getModel(editarea.getShell());
-                    if(model == null) return;
+
+            button.addActionListener(e ->
+                OpenGG.asyncExec(() -> {
+                    Model model = ModelSelectionDialog.getModel(SwingUtilities.getWindowAncestor(this));
+                    if (model == null) return;
                     element.value = model;
-                    if(view != null && element.autoupdate) fireEvent(element);
+                    if (view != null && element.autoupdate) fireEvent(element);
                     update(true);
-                }
+                }));
 
-                @Override public void widgetDefaultSelected(SelectionEvent e) {}
-            });
-
-            Label fillspace = new Label(editarea, SWT.NULL);
-            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
         }
 
-        if(element.autoupdate){
-            Label fillspace = new Label(editarea, SWT.NULL);
-            fillspace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        }else{
-            Button button = new Button(editarea, SWT.PUSH);
-            button.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-            button.setText("Enter");
-            button.addSelectionListener(new SelectionListener(){
-                @Override
-                public void widgetSelected(SelectionEvent event) {
-                    if(view != null) fireEvent(element);
-                }
-
-                @Override
-                public void widgetDefaultSelected(SelectionEvent event) {}
+        if (!element.autoupdate) {
+            JButton button = new JButton("Enter");
+            this.add(button);
+            button.addActionListener(e -> {
+                if (view != null) fireEvent(element);
             });
         }
-        
+
         update(true);
     }
     
@@ -319,59 +240,54 @@ public class GGElement {
     }
     
     public void update(boolean force){
-        try{
+        /*try{
             ((Label)all.get(0)).setText(element.name);
         }catch(Exception e){
-            WorldEditor.clearArea(editarea);
+            GGConsole.warning("Exception when loading GGElement: " + e.getMessage());
+            this.removeAll();
             WorldEditor.setView(null);
             return; 
-        }
+        }*/
         if(!element.forceupdate && !force) return;
         
         if(element.type == Element.Type.VECTOR4F){
             Vector4f data = (Vector4f)element.value;
-            ((Text)all.get(1)).setText(Float.toString(data.x));
-            ((Text)all.get(2)).setText(Float.toString(data.y));
-            ((Text)all.get(3)).setText(Float.toString(data.z));
-            ((Text)all.get(4)).setText(Float.toString(data.w));
+            ((JFormattedTextField)all.get(0)).setText(Float.toString(data.x));
+            ((JFormattedTextField)all.get(1)).setText(Float.toString(data.y));
+            ((JFormattedTextField)all.get(2)).setText(Float.toString(data.z));
+            ((JFormattedTextField)all.get(3)).setText(Float.toString(data.w));
         }else if(element.type == Element.Type.VECTOR3F){
             Vector3f data = (Vector3f)element.value;
-            ((Text)all.get(1)).setText(Float.toString(data.x()));
-            ((Text)all.get(2)).setText(Float.toString(data.y()));
-            ((Text)all.get(3)).setText(Float.toString(data.z()));
+            ((JFormattedTextField)all.get(0)).setText(Float.toString(data.x()));
+            ((JFormattedTextField)all.get(1)).setText(Float.toString(data.y()));
+            ((JFormattedTextField)all.get(2)).setText(Float.toString(data.z()));
         }else if(element.type == Element.Type.VECTOR2F){
             Vector2f data = (Vector2f)element.value;
-            ((Text)all.get(1)).setText(Float.toString(data.x));
-            ((Text)all.get(2)).setText(Float.toString(data.y));
+            ((JFormattedTextField)all.get(0)).setText(Float.toString(data.x));
+            ((JFormattedTextField)all.get(1)).setText(Float.toString(data.y));
         }else if(element.type == Element.Type.FLOAT){
             float data = (Float)element.value;
-            ((Text)all.get(1)).setText(Float.toString(data));
+            ((JFormattedTextField)all.get(0)).setText(Float.toString(data));
         }else if(element.type == Element.Type.INTEGER){
             int data = (Integer)element.value;
-            ((Text)all.get(1)).setText(Integer.toString(data));
+            ((JFormattedTextField)all.get(0)).setText(Integer.toString(data));
         }else if(element.type == Element.Type.STRING){
             String data = (String)element.value;
-            ((Text)all.get(1)).setText(data);
+            ((JTextField)all.get(0)).setText(data);
         }else if(element.type == Element.Type.BOOLEAN){
             boolean data = (Boolean)element.value;
-            ((Button)all.get(1)).setText(Boolean.toString(data));
-            ((Button)all.get(1)).setSelection(data);
+            ((JToggleButton)all.get(0)).setText(data ? "True" : "False");
+            ((JToggleButton)all.get(0)).setSelected(data);
         }else if(element.type == Element.Type.TEXTURE){
             TextureData data = (TextureData)element.value;
-            ((Button)all.get(1)).setText(data.source);
-        }
-    }
-    
-    public void remove(){
-        for(Control c : all){
-            c.dispose();
+            ((JButton)all.get(0)).setText(data.source);
         }
     }
     
     public void fireEvent(Element element){
         OpenGG.asyncExec(() -> {
-            view.cvm.fireEvent(element);
-            view.cvm.updateLocal();  
+            view.getViewModel().fireEvent(element);
+            view.getViewModel().updateLocal();
         });
     }
 }

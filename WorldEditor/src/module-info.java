@@ -11,10 +11,10 @@ module WorldEditor {
     requires com.opengg.core;
     requires com.opengg.console;
     requires com.opengg.math;
-    requires swt;
-    requires com.opengg.swt;
+    requires java.desktop;
 
-
-
+    requires org.lwjgl.opengl;
+    requires org.lwjgl.jawt;
+    requires com.opengg.base;
     requires javafx.base;
 }

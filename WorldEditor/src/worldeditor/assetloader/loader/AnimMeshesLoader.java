@@ -256,23 +256,27 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
     }
 
     private static Matrix4f toMatrix(AIMatrix4x4 aiMatrix4x4) {
-        Matrix4f result = new Matrix4f();
-        result.m00 = aiMatrix4x4.a1();
-        result.m10 = (aiMatrix4x4.a2());
-        result.m20 = (aiMatrix4x4.a3());
-        result.m30 = (aiMatrix4x4.a4());
-        result.m01 = (aiMatrix4x4.b1());
-        result.m11 = (aiMatrix4x4.b2());
-        result.m21 = (aiMatrix4x4.b3());
-        result.m31 = (aiMatrix4x4.b4());
-        result.m02 = (aiMatrix4x4.c1());
-        result.m12 = (aiMatrix4x4.c2());
-        result.m22 = (aiMatrix4x4.c3());
-        result.m32 = (aiMatrix4x4.c4());
-        result.m03 = (aiMatrix4x4.d1());
-        result.m13 = (aiMatrix4x4.d2());
-        result.m23 = (aiMatrix4x4.d3());
-        result.m33 = (aiMatrix4x4.d4());
+        var m00=(aiMatrix4x4.a1());
+        var m10=(aiMatrix4x4.a2());
+        var m20=(aiMatrix4x4.a3());
+        var m30=(aiMatrix4x4.a4());
+        var m01=(aiMatrix4x4.b1());
+        var m11=(aiMatrix4x4.b2());
+        var m21=(aiMatrix4x4.b3());
+        var m31=(aiMatrix4x4.b4());
+        var m02=(aiMatrix4x4.c1());
+        var m12=(aiMatrix4x4.c2());
+        var m22=(aiMatrix4x4.c3());
+        var m32=(aiMatrix4x4.c4());
+        var m03=(aiMatrix4x4.d1());
+        var m13=(aiMatrix4x4.d2());
+        var m23=(aiMatrix4x4.d3());
+        var m33=(aiMatrix4x4.d4());
+
+        Matrix4f result = new Matrix4f(m00, m01, m02, m03,
+                m10, m11, m12, m13,
+                m20, m21, m22, m23,
+                m30, m31, m32, m33);
         return result;
     }
 }

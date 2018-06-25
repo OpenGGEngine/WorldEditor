@@ -7,49 +7,47 @@ package worldeditor;
 
 import com.opengg.core.world.WorldEngine;
 import com.opengg.core.world.components.viewmodel.ViewModel;
-import com.opengg.core.world.components.viewmodel.Element;
-import java.util.ArrayList;
+
+import java.awt.*;
 import java.util.List;
-import org.eclipse.swt.SWT;
-import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.events.SelectionListener;
-import org.eclipse.swt.layout.GridData;
-import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Composite;
+import java.util.stream.Collectors;
+
+import javax.swing.*;
 
 /**
  *
  * @author Javier
  */
-public class GGView {
+public class GGView extends JPanel{
     private ViewModel cvm;
     private boolean complete;
-    private List<GGElement> elements = new ArrayList<>();
+    private List<GGElement> elements;
     
-    public GGView(Composite editarea, ViewModel cvm){
+    public GGView(ViewModel cvm){
         this.cvm = cvm;
-        for(Element element : cvm.getElements()){
-            elements.add(new GGElement(editarea, element, this));
-        }
+
+        elements = cvm.getElements().stream()
+                .map(e -> new GGElement(e, this))
+                .peek(this::add)
+                .collect(Collectors.toList());
         
-        Button remove = new Button(editarea, SWT.PUSH);
-        remove.addSelectionListener(new SelectionListener() {
+        JButton remove = new JButton();
+        this.add(remove);
 
-            @Override
-            public void widgetSelected(SelectionEvent event) {
-                WorldEngine.markForRemoval(cvm.getComponent());
-                WorldEngine.removeMarked();
-                editarea.getDisplay().asyncExec(() -> {
-                    WorldEditor.refreshComponentList();
-                });
-            }
+        remove.addActionListener(e -> {
+            WorldEngine.markForRemoval(cvm.getComponent());
+            WorldEngine.removeMarked();
+            WorldEditor.refreshComponentList();
+            });
 
-            @Override
-            public void widgetDefaultSelected(SelectionEvent event) {}
-        });
+        var gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = GridBagConstraints.RELATIVE;
+
         remove.setText("Remove Component");
-        remove.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 1, 1));
-        editarea.layout();
+        this.add(remove, gbc);
+        this.doLayout();
+        this.setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         complete = true;
     }
     
@@ -63,4 +61,9 @@ public class GGView {
     public boolean isComplete(){
         return complete;
     }
+
+    public ViewModel getViewModel(){
+        return cvm;
+    }
+
 }

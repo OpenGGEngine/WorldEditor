@@ -26,7 +26,7 @@ float getShadowPercent(Light light, int i){
     float closestDepth = texture(shadowmap, projCoords.xy).r;
 
     float bias = 0.005*tan(acos(dot(norm, light.lightpos.xyz))); // cosTheta is dot( n,l ), clamped between 0 and 1
-    bias = clamp(bias, 0,0.01);
+    bias = clamp(bias, 0.0f,0.01f);
     bias = 0.008f;
 
     float shadow = (projCoords.z -0.5f) - bias > closestDepth  ? 0.0f : 1.0f;

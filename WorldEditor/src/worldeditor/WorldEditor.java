@@ -5,6 +5,7 @@
  */
 package worldeditor;
 
+import com.opengg.core.GGInfo;
 import com.opengg.core.console.GGConsole;
 import com.opengg.core.engine.*;
 import com.opengg.core.extension.ExtensionManager;
@@ -13,378 +14,412 @@ import com.opengg.core.math.Matrix4f;
 import com.opengg.core.math.Quaternionf;
 import com.opengg.core.math.Vector3f;
 import com.opengg.core.math.Vector3fm;
-import com.opengg.core.model.Model;
 import com.opengg.core.render.*;
-import com.opengg.core.render.drawn.Drawable;
+import com.opengg.core.render.objects.ObjectCreator;
+import com.opengg.core.render.texture.Texture;
 import com.opengg.core.render.window.WindowInfo;
 import com.opengg.core.world.*;
+import com.opengg.core.world.Action;
 import com.opengg.core.world.components.Component;
 import com.opengg.core.world.components.viewmodel.Initializer;
 import com.opengg.core.world.components.viewmodel.ViewModel;
 import com.opengg.core.world.components.viewmodel.ViewModelComponentRegistry;
-import com.opengg.module.swt.SWTExtension;
-import com.opengg.module.swt.window.GGCanvas;
-import com.opengg.module.swt.window.GLCanvas;
-import org.eclipse.swt.SWT;
-import org.eclipse.swt.custom.ScrolledComposite;
-import org.eclipse.swt.dnd.*;
-import org.eclipse.swt.events.*;
-import org.eclipse.swt.graphics.Image;
-import org.eclipse.swt.graphics.Point;
-import org.eclipse.swt.graphics.Rectangle;
-import org.eclipse.swt.layout.FillLayout;
-import org.eclipse.swt.layout.GridData;
-import org.eclipse.swt.layout.GridLayout;
-import org.eclipse.swt.widgets.*;
-import org.eclipse.swt.widgets.Text;
-import worldeditor.assetloader.AssetShell;
+
+import com.opengg.ext.awt.AWTExtension;
+import worldeditor.assetloader.AssetDialog;
+
+import javax.swing.*;
+import javax.swing.border.EtchedBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.filechooser.FileFilter;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.tree.*;
+
+import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.util.Enumeration;
+import java.util.Objects;
 
 import static com.opengg.core.io.input.keyboard.Key.*;
 
+
 public class WorldEditor extends GGApplication implements Actionable{
 
-    private static Display display;
-    private static Shell shell;
-    private static Tree tree;
+    private static final Object initlock = new Object();
+    private static JFrame window;
+    private static JPanel mainpanel;
+    private static JTree tree;
     private static GGView currentview;
-    private static Composite editarea;
-    private static Composite addregion;
+    private static JPanel editarea;
+    private static JPanel addregion;
+    private static JPanel canvasregion;
     private static boolean refresh;
-    private static Composite treearea;
+    private static JPanel treearea;
     private static Vector3fm control = new Vector3fm();
     private static Vector3fm controlrot = new Vector3fm();
     private static Vector3fm currot = new Vector3fm();
     private static float rotspeed = 30;
     private static Camera cam;
     private static EditorTransmitter transmitter;
-    private static Text consoletext;
+    private static JTextArea consoletext;
+    private static DefaultTreeModel treeModel;
+    private static DefaultMutableTreeNode upperTreeNode;
     int i = 0;
 
     public static void main(String[] args){
+
         Thread ui = new Thread(() -> {
-            initSWT();
+            initSwing();
         });
         ui.setName("UI Thread");
         ui.start();
 
-        try{
-            Thread.sleep(1000);
-        }catch(InterruptedException ex){
+        synchronized (initlock){
+            try {
+                initlock.wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
-        ExtensionManager.addExtension(new SWTExtension(shell, display));
+        ExtensionManager.addExtension(new AWTExtension(canvasregion));
 
         WindowInfo w = new WindowInfo();
         w.width = 640;
         w.height = 480;
         w.resizable = false;
-        w.type = "SWT";
+        w.type = "AWT";
         w.vsync = true;
         OpenGG.initialize(new WorldEditor(), w);
     }
 
-    public static void initSWT(){
+    public static void initSwing(){
         int minClientWidth = 1920;
         int minClientHeight = 1080;
-        display = new Display();
-        shell = new Shell(display);
 
-        Image image = new Image(display, "resources\\tex\\emak.png");
-        shell.setImage(image);
-
-        GridLayout layout = new GridLayout();
-        layout.numColumns = 4;
-        layout.makeColumnsEqualWidth = true;
-
-        shell.setLayout(layout);
-        shell.setText("World Editor");
-
-        var menuBar = new Menu(shell, SWT.BAR);
-
-        var cascadeFileMenu = new MenuItem(menuBar, SWT.CASCADE);
-        cascadeFileMenu.setText("&File");
-
-        var fileMenu = new Menu(shell, SWT.DROP_DOWN);
-        cascadeFileMenu.setMenu(fileMenu);
-
-        var cascadeEditMenu = new MenuItem(menuBar, SWT.CASCADE);
-        cascadeEditMenu.setText("&Edit");
-
-        var cascadeWorldMenu = new MenuItem(menuBar, SWT.CASCADE);
-        cascadeWorldMenu.setText("&World");
-
-        var worldMenu = new Menu(shell, SWT.DROP_DOWN);
-        cascadeWorldMenu.setMenu(worldMenu);
-
-        var gamepath = new MenuItem(fileMenu, SWT.CASCADE);
-        gamepath.setText("Set root game path");
-        gamepath.addSelectionListener(new SelectionAdapter(){
-            @Override
-            public void widgetSelected(SelectionEvent e){
-                var dialog = new DirectoryDialog(shell, SWT.OPEN);
-                dialog.setFilterPath(Resource.getAbsoluteFromLocal(""));
-                String npath = dialog.open();
-                Resource.setDefaultPath(npath);
-                shell.setText("World Editor: " + npath);
-                GGConsole.log("Switched game path to " + npath);
-            }
-        });
-
-        var jarload = new MenuItem(fileMenu, SWT.CASCADE);
-        jarload.setText("Load game JAR");
-        jarload.addSelectionListener(new SelectionAdapter(){
-            @Override
-            public void widgetSelected(SelectionEvent e){
-                var dialog = new FileDialog(shell, SWT.OPEN);
-                dialog.setText("Game JAR file");
-                dialog.setFilterExtensions(new String[]{"*.jar"});
-                dialog.setFilterPath(Resource.getAbsoluteFromLocal(""));
-                String result = dialog.open();
-                if(result == null || result.isEmpty()) return;
-                ViewModelComponentRegistry.clearRegistry();
-                ViewModelComponentRegistry.registerAllFromJar(result);
-                ViewModelComponentRegistry.createRegisters();
-                updateAddRegion();
-            }
-        });
-
-        var loadmap = new MenuItem(fileMenu, SWT.CASCADE);
-        loadmap.setText("Load world");
-        loadmap.addSelectionListener(new SelectionAdapter(){
-            @Override
-            public void widgetSelected(SelectionEvent e){
-                var dialog = new FileDialog(shell, SWT.OPEN);
-                dialog.setText("Load world...");
-                dialog.setFilterExtensions(new String[]{"*.bwf"});
-                dialog.setFilterPath(Resource.getAbsoluteFromLocal(""));
-                var result = dialog.open();
-                if(result == null){
-                    return;
-                }
-                OpenGG.syncExec(() -> {
-                    WorldEngine.useWorld(WorldEngine.loadWorld(result));
-                    RenderEngine.useCamera(cam);
-                    BindController.addController(transmitter);
-                });
-
-                refreshComponentList();
-            }
-        });
-
-        var savemap = new MenuItem(fileMenu, SWT.CASCADE);
-        savemap.setText("Save world");
-        savemap.addSelectionListener(new SelectionAdapter(){
-            @Override
-            public void widgetSelected(SelectionEvent e){
-                var dialog = new FileDialog(shell, SWT.OPEN);
-                dialog.setText("Save world...");
-                dialog.setFilterExtensions(new String[]{"*.bwf"});
-                dialog.setFilterPath(Resource.getAbsoluteFromLocal(""));
-                var result = dialog.open();
-                if(result == null) return;
-
-                OpenGG.asyncExec(() -> WorldEngine.saveWorld(WorldEngine.getCurrent(), result));
-                refreshComponentList();
-            }
-        });
-
-        var FileMenu = new MenuItem(menuBar, SWT.CASCADE);
-        FileMenu.setText("&AssetLoader");
-        FileMenu.addSelectionListener(new SelectionAdapter(){
-            @Override
-            public void widgetSelected(SelectionEvent e){
-                AssetShell.loadModel(shell);
-            }
-
-        });
-
-        shell.setMenuBar(menuBar);
-
-        var treedata = new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1);
-        treearea = new Composite(shell, SWT.BORDER);
-        treearea.setLayoutData(treedata);
-        treearea.setLayout(new FillLayout());
-
-        setupTree();
-
-        int dw = shell.getSize().x - shell.getClientArea().width;
-        int dh = shell.getSize().y - shell.getClientArea().height;
-        shell.setMinimumSize(minClientWidth + dw, minClientHeight + dh);
-
-        shell.addListener(SWT.Traverse, (event) -> {
-            switch(event.detail){
-                case SWT.TRAVERSE_ESCAPE:
-                    shell.close();
-                    event.detail = SWT.TRAVERSE_NONE;
-                    event.doit = false;
-                    break;
-                default:
-                    break;
-            }
-        });
-
-        while(!shell.isDisposed()){
-            if(!display.readAndDispatch()){
-                display.sleep();
-            }
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (UnsupportedLookAndFeelException e) {
+            e.printStackTrace();
         }
-        close();
-        display.dispose();
-    }
 
-    public static void initSWT2(){
-        editarea = new Composite(shell, SWT.BORDER);
-        editarea.setLayout(new GridLayout(6, false));
-        editarea.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 2));
 
-        addregion = new Composite(shell, SWT.BORDER);
-        addregion.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
-        addregion.setLayout(new FillLayout());
 
-        ScrolledComposite console = new ScrolledComposite(shell, SWT.BORDER | SWT.V_SCROLL);
-        console.setLayout(new FillLayout());
-        console.setExpandHorizontal(true);
-        console.setExpandVertical(true);
-        console.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false, 4, 1));
-        console.setMinHeight(120);
-        console.layout();
+        window = new JFrame();
+        window.setMinimumSize(new Dimension(1920,1080));
+        window.setIconImage(new ImageIcon("resources\\tex\\emak.png").getImage());
+        window.setLayout(new BorderLayout());
+        window.setTitle("World Editor");
 
-        consoletext = new Text(console, SWT.READ_ONLY | SWT.MULTI);
+        mainpanel = new JPanel();
+        mainpanel.setMinimumSize(window.getMinimumSize());
+        window.add(mainpanel);
 
-        console.setContent(consoletext);
-         /*PrintStream oldout = System.out;
-         OutputStream out = new OutputStream() {
-         @Override
-         public void write(int b) throws IOException {
-         if (consoletext.isDisposed()) return;
-         consoletext.append(String.valueOf((char) b));
-         consoletext.pack();
-         oldout.write(b);
-         }
-         };
+
+        mainpanel.setLayout(new GridBagLayout());
+
+        var menuBar = new JMenuBar();
+        window.setJMenuBar(menuBar);
+
+        var fileMenu = new JMenu();
+        fileMenu.setText("File");
+
+        var editMenu = new JMenu();
+        editMenu.setText("Edit");
+
+        var worldMenu = new JMenu();
+        worldMenu.setText("World");
+
+        var assetLoader = new JMenuItem();
+        assetLoader.setText("Asset Loader");
+        assetLoader.addActionListener((e) -> new AssetDialog(getFrame()));
+
+
+        menuBar.add(fileMenu);
+        menuBar.add(editMenu);
+        menuBar.add(worldMenu);
+        menuBar.add(assetLoader);
+
+
+        var gamepath = new JMenuItem();
+        gamepath.setText("Set root game path");
+        gamepath.addActionListener((e) -> {
+            createGamePathChooser();
+        });
+
+        var jarload = new JMenuItem();
+        jarload.setText("Load game JAR");
+        jarload.addActionListener((e) -> {
+            createJarLoadChooser();
+        });
+
+        var loadmap = new JMenuItem();
+        loadmap.setText("Load world");
+        loadmap.addActionListener((e) -> {
+            createWorldLoadChooser();
+        });
+
+        var savemap = new JMenuItem();
+        savemap.setText("Save world");
+        savemap.addActionListener((e) -> {
+            createWorldSaveChooser();
+        });
+
+        fileMenu.add(gamepath);
+        fileMenu.add(jarload);
+        fileMenu.add(loadmap);
+        fileMenu.add(savemap);
+
+        var gbc = new GridBagConstraints();
+        gbc.weightx = 1;
+        gbc.weighty = 1;
+        gbc.fill = GridBagConstraints.BOTH;
+
+        var raisedetched = BorderFactory.createEtchedBorder(EtchedBorder.RAISED);
+
+        treearea = new JPanel();
+        treearea.setLayout(new BorderLayout());
+        treearea.setBorder(raisedetched);
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 1;
+        gbc.gridheight = 1;
+
+        mainpanel.add(treearea, gbc);
+
+        addregion = new JPanel();
+        addregion.setLayout(new BoxLayout(addregion, BoxLayout.PAGE_AXIS));
+        addregion.setBorder(raisedetched);
+
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 1;
+        gbc.gridheight = 1;
+        mainpanel.add(addregion, gbc);
+
+        canvasregion = new JPanel();
+        canvasregion.setLayout(new BorderLayout());
+        canvasregion.setBorder(raisedetched);
+        canvasregion.setMinimumSize(new Dimension(800, 600));
+        canvasregion.setMaximumSize(new Dimension(800, 600));
+        canvasregion.setPreferredSize(new Dimension(800, 600));
+
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        gbc.gridheight = 2;
+        mainpanel.add(canvasregion, gbc);
+
+        editarea = new JPanel();
+        editarea.setLayout(new GridBagLayout());
+        editarea.setBorder(raisedetched);
+
+        gbc.gridx = GridBagConstraints.RELATIVE;
+        gbc.gridy = 0;
+        gbc.gridwidth = 1;
+        gbc.gridheight = 2;
+        mainpanel.add(editarea, gbc);
+
+        JScrollPane console = new JScrollPane();
+        console.setLayout(new ScrollPaneLayout());
+        console.setBorder(raisedetched);
+        console.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        console.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        console.setWheelScrollingEnabled(true);
+        console.setPreferredSize(new Dimension(1000, 200));
+
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 4;
+        gbc.gridheight = 1;
+        mainpanel.add(console, gbc);
+
+        consoletext = new JTextArea();
+        consoletext.setEditable(false);
+
+        console.setViewportView(consoletext);
+
+        PrintStream oldout = System.out;
+        OutputStream out = new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                //if (consoletext.isEnabled()) return;
+                consoletext.append(String.valueOf((char) b));
+                oldout.write(b);
+            }
+        };
 
          System.setOut(new PrintStream(out));
-         */
-        GLCanvas localcanvas = ((GGCanvas) OpenGG.getWindow()).getCanvas();
-        localcanvas.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 2, 2));
+
+         setupTree();
+
+         mainpanel.doLayout();
+         window. addWindowListener(new WindowAdapter()  {
+             @Override
+             public void windowClosing(WindowEvent e)
+             {
+                 OpenGG.endApplication();
+                 e.getWindow().dispose();
+             }
+         });
+
+        window.setVisible(true);
+
+         synchronized (initlock){
+             initlock.notifyAll();
+         }
     }
 
-    public static void useTreeItem(TreeItem item){
-        clearArea(editarea);
+    private static void createWorldSaveChooser() {
+        var dialog = new JFileChooser(GGInfo.getApplicationPath());
+        dialog.showSaveDialog(null);
+        dialog.setFileFilter(new FileNameExtensionFilter("OpenGG world savefile", "bwf"));
 
-        String text = item.getText();
-        int id = Integer.parseInt(text.substring(text.lastIndexOf(":") + 2));
+        var resultfile = dialog.getSelectedFile();
+        if (resultfile == null) return;
+        var result = resultfile.getAbsolutePath();
 
-        Component component = WorldEngine.getCurrent().find(id);
-        Class clazz = component.getClass();
-        Class vmclass = ViewModelComponentRegistry.findViewModel(clazz);
+        OpenGG.asyncExec(() -> WorldEngine.saveWorld(WorldEngine.getCurrent(), result));
+        refreshComponentList();
+    }
 
-        if(vmclass == null){
-            clearArea(editarea);
-            currentview = null;
-            return;
-        }
+    private static void createGamePathChooser() {
+        var dialog = new JFileChooser(GGInfo.getApplicationPath());
+        dialog.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        dialog.showDialog(null, "Set game path...");
 
-        OpenGG.asyncExec(() -> {
-            try{
-                ViewModel cvm = (ViewModel) vmclass.newInstance();
-                cvm.setComponent(component);
-                cvm.updateLocal();
-                display.syncExec(() -> {
-                    useViewModel(cvm);
-                });
-            }catch(InstantiationException | IllegalAccessException ex){
-                GGConsole.error("Failed to create instance of a ComponentViewModel for " + component.getName() + ", is there a default constructor?");
-            }
+        var resultfile = dialog.getSelectedFile();
+        if (resultfile == null) return;
+        var result = resultfile.getAbsolutePath();
+
+        Resource.setDefaultPath(result);
+        mainpanel.setName("World Editor: " + result);
+        GGConsole.log("Switched game path to " + result);
+    }
+
+    private static void createJarLoadChooser() {
+        var dialog = new JFileChooser(GGInfo.getApplicationPath());
+        dialog.setFileFilter(new FileNameExtensionFilter("OpenGG application JAR","jar"));
+        dialog.showDialog(null, "Load game JAR...");
+
+        var resultfile = dialog.getSelectedFile();
+        if (resultfile == null) return;
+        var result = resultfile.getAbsolutePath();
+
+        ViewModelComponentRegistry.clearRegistry();
+        ViewModelComponentRegistry.registerAllFromJar(result);
+        ViewModelComponentRegistry.createRegisters();
+        updateAddRegion();
+    }
+
+    private static void createWorldLoadChooser() {
+        var dialog = new JFileChooser(GGInfo.getApplicationPath());
+        dialog.setFileFilter(new FileNameExtensionFilter("OpenGG world savefiles","bwf"));
+        dialog.showOpenDialog(null);
+
+        var resultfile = dialog.getSelectedFile();
+        if (resultfile == null) return;
+        var result = resultfile.getAbsolutePath();
+
+        OpenGG.syncExec(() -> {
+            WorldEngine.useWorld(WorldEngine.loadWorld(result));
+            RenderEngine.useCamera(cam);
+            BindController.addController(transmitter);
         });
 
+        refreshComponentList();
     }
 
     public static void useViewModel(ViewModel cvm){
-        clearArea(editarea);
-
-        GGView view = new GGView(editarea, cvm);
+        editarea.removeAll();
+        GGView view = new GGView(cvm);
+        editarea.add(view);
         currentview = view;
-        editarea.layout();
-    }
-
-    public static void addDecimalListener(Text textField){
-        textField.addVerifyListener((VerifyEvent e) -> {
-            Text text = (Text) e.getSource();
-            String oldS = text.getText();
-            String newS = oldS.substring(0, e.start) + e.text + oldS.substring(e.end);
-
-            boolean valid = true;
-            try{
-                Float.parseFloat(newS);
-            }catch(NumberFormatException ex){
-                valid = false;
-            }
-
-            if(!valid){
-                e.doit = false;
-            }
-        });
-    }
-
-    public static void addIntegerListener(Text textField){
-        textField.addVerifyListener((VerifyEvent e) -> {
-            Text text = (Text) e.getSource();
-            String oldS = text.getText();
-            String newS = oldS.substring(0, e.start) + e.text + oldS.substring(e.end);
-
-            boolean valid = true;
-            try{
-                Integer.parseInt(newS);
-            }catch(NumberFormatException ex){
-                valid = false;
-            }
-
-            if(!valid){
-                e.doit = false;
-            }
-        });
     }
 
     public static void updateAddRegion(){
-        clearArea(addregion);
-        try{
-            Thread.sleep(100);
-        }catch(Exception e){
+        addregion.removeAll();
 
-        }
+        var strings = ViewModelComponentRegistry.getAllRegistries().stream()
+                .map(reg -> reg.getComponent().getSimpleName())
+                .sorted()
+                .toArray(String[]::new);
 
-        List classes = new List(addregion, SWT.V_SCROLL);
-        addregion.layout();
-        for(var info : ViewModelComponentRegistry.getAllRegistries()){
-            classes.add(info.getComponent().getSimpleName());
-        }
-
-        classes.addSelectionListener(new SelectionAdapter(){
+        JList<String> classes = new JList<>(strings);
+        classes.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
+        classes.setCellRenderer(new DefaultListCellRenderer(){
             @Override
-            public void widgetSelected(SelectionEvent event){
-                if(classes.getSelectionIndex() < 0) return;
-                var info = ViewModelComponentRegistry.getAllRegistries().get(classes.getSelectionIndex());
-                Class clazz = info.getComponent();
-                Class vmclazz = ViewModelComponentRegistry.findViewModel(clazz);
+            public java.awt.Component getListCellRendererComponent(JList<?> list,
+                                                                   Object value, int index, boolean isSelected,
+                                                                   boolean cellHasFocus) {
+                JLabel listCellRendererComponent = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected,cellHasFocus);
+                listCellRendererComponent.setBorder(BorderFactory.createMatteBorder(1, 1, 1, 1,Color.BLACK));
+                listCellRendererComponent.setHorizontalAlignment(CENTER);
+                listCellRendererComponent.setMinimumSize(new Dimension(10,8));
+                return listCellRendererComponent;
+            }
+        });
+        classes.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+        classes.setVisibleRowCount(-1);
 
-                try{
-                    var viewmodel = (ViewModel) vmclazz.getDeclaredConstructor().newInstance();
-                    var initializer = viewmodel.getInitializer(new Initializer());
-                    if(initializer.elements.isEmpty()){
-                        createComponent(initializer, viewmodel);
-                    }else{
-                        NewComponentShell ncs = new NewComponentShell(initializer, shell, viewmodel);
-                        ncs.nshell.addDisposeListener(e -> shell.setEnabled(true));
+        JScrollPane listScroller = new JScrollPane(classes);
+        listScroller.setPreferredSize(new Dimension(100, 300));
 
-                        shell.setEnabled(false);
-                    }
-                }catch(Exception ex){
-                    GGConsole.error("Failed to create instance of a ViewModel for " + clazz.getName() + ", is there a default constructor?");
+        addregion.add(listScroller);
+
+        JButton creator = new JButton("Create Component");
+        addregion.add(creator);
+
+        classes.addListSelectionListener(s -> {
+            if (!s.getValueIsAdjusting()) {
+                if (classes.getSelectedIndex() == -1) {
+                    creator.setEnabled(false);
+
+                } else {
+                    creator.setEnabled(true);
                 }
             }
-
         });
+
+        creator.addActionListener((a) -> {
+            var selection = classes.getSelectedValue();
+            createComponentCreatorPanel(selection);
+        });
+    }
+
+    private static void createComponentCreatorPanel(String name) {
+        var info = ViewModelComponentRegistry.getByClassname(name);
+        Class clazz = info.getComponent();
+        Class vmclazz = ViewModelComponentRegistry.findViewModel(clazz);
+        ViewModel viewmodel;
+
+        try {
+             viewmodel = (ViewModel) Objects.requireNonNull(vmclazz).getDeclaredConstructor().newInstance();
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+            GGConsole.error("Failed to create instance of a ViewModel for " + clazz.getName() + ", is there a default constructor?");
+            return;
+        }
+
+        var initializer = viewmodel.getInitializer(new Initializer());
+        if (initializer.elements.isEmpty()) {
+            createComponent(initializer, viewmodel);
+        } else {
+            NewComponentDialog ncs = new NewComponentDialog(initializer, viewmodel, getFrame());
+        }
+
     }
 
     public static void markForRefresh(){
@@ -394,53 +429,70 @@ public class WorldEditor extends GGApplication implements Actionable{
     public static void refreshComponentList(){
         var world = WorldEngine.getCurrent();
 
-        tree.removeAll();
+        upperTreeNode.removeAllChildren();
+        treeModel.reload();
         for(var compo : world.getChildren()){
-            var item = new TreeItem(tree, SWT.NONE);
-            item.setText(compo.getClass().getSimpleName() + ": " + compo.getId());
-            mystery6(compo, item);
+            mystery6(compo, upperTreeNode);
         }
 
-        clearArea(editarea);
+        editarea.removeAll();
 
-        if(tree.getItems().length == 0){
-            currentview = null;
-        }else{
-            tree.setSelection(tree.getItem(0));
-            useTreeItem(tree.getItem(0));
-        }
+        var node = (DefaultMutableTreeNode) tree.getLastSelectedPathComponent();
+
+        //if(node != null){
+        //    useTreeItem((String) node.getUserObject());
+        //}
     }
 
-    public static void mystery6(Component comp, TreeItem treepart){
+    public static void mystery6(Component comp, DefaultMutableTreeNode parent){
+        var child = addComponentToTree(comp, parent);
         for(var compo : comp.getChildren()){
-            var item = new TreeItem(treepart, SWT.NONE);
-            item.setText(compo.getClass().getSimpleName() + ": " + compo.getId());
-            mystery6(compo, item);
+            mystery6(compo, child);
         }
     }
 
-    public static void clearArea(Composite region){
-        for(var control : region.getChildren()){
-            control.dispose();
-        }
+    public static DefaultMutableTreeNode addComponentToTree(Component comp, DefaultMutableTreeNode parent){
+        DefaultMutableTreeNode child = new DefaultMutableTreeNode(comp.getClass().getSimpleName() + ": " + comp.getId());
+        treeModel.insertNodeInto(child, parent, parent.getChildCount());
+        tree.scrollPathToVisible(new TreePath(child.getPath()));
+        return child;
     }
 
     public static void createComponent(Initializer vmi, ViewModel cvm){
         OpenGG.asyncExec(() -> {
-            var ncomp = cvm.getFromInitializer(vmi);
-            WorldEngine.getCurrent().attach(ncomp);
-            WorldEngine.getCurrent().rescanRenderables();
-            display.asyncExec(() -> {
+            try {
+                var ncomp = cvm.getFromInitializer(vmi);
+                WorldEngine.getCurrent().attach(ncomp);
+                WorldEngine.getCurrent().rescanRenderables();
                 refreshComponentList();
-                useTreeItem(tree.getItems()[tree.getItems().length - 1]);
-                tree.setSelection(tree.getItems()[tree.getItems().length - 1]);
-            });
+                tree.setSelectionPath(findById(ncomp.getId()));
+            }catch(Exception e){
+                GGConsole.error("Failed to initialize component: " + e.getMessage());
+                e.printStackTrace();
+            }
         });
 
     }
 
     public static void setupTree(){
-        tree = new Tree(treearea, SWT.V_SCROLL);
+        upperTreeNode = new DefaultMutableTreeNode("Components");
+        treeModel = new DefaultTreeModel(upperTreeNode);
+
+        tree = new JTree(treeModel);
+        tree.setEditable(true);
+        tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+        tree.setShowsRootHandles(true);
+        tree.setRootVisible(false);
+
+        treearea.add(tree);
+
+        tree.addTreeSelectionListener((e) -> {
+            DefaultMutableTreeNode node = (DefaultMutableTreeNode)
+                    tree.getLastSelectedPathComponent();
+            if(node == null) return;
+            useTreeItem((String) node.getUserObject());
+        });
+        /*
         TreeItem[] dragitem = new TreeItem[1];
 
         DragSource source = new DragSource(tree, DND.DROP_MOVE | DND.DROP_COPY | DND.DROP_LINK);
@@ -481,7 +533,7 @@ public class WorldEditor extends GGApplication implements Actionable{
                 event.feedback = DND.FEEDBACK_EXPAND | DND.FEEDBACK_SCROLL;
                 if(event.item != null){
                     TreeItem item = (TreeItem) event.item;
-                    Point pt = display.map(null, tree, event.x, event.y);
+                    Point pt = window.map(null, tree, event.x, event.y);
                     Rectangle bounds = item.getBounds();
                     if(pt.y < bounds.y + bounds.height / 3){
                         event.feedback |= DND.FEEDBACK_INSERT_BEFORE;
@@ -524,26 +576,54 @@ public class WorldEditor extends GGApplication implements Actionable{
             }
         });
 
-        tree.addSelectionListener(new SelectionListener(){
-            @Override
-            public void widgetSelected(SelectionEvent event){
-                useTreeItem((TreeItem) event.item);
-            }
 
-            @Override
-            public void widgetDefaultSelected(SelectionEvent event){
-                useTreeItem((TreeItem) event.item);
+        tree.pack();*/
+    }
+
+    public static void useTreeItem(String item){
+        int id = Integer.parseInt(item.substring(item.lastIndexOf(":") + 2));
+
+        Component component = WorldEngine.getCurrent().find(id);
+        Class clazz = component.getClass();
+        Class vmclass = ViewModelComponentRegistry.findViewModel(clazz);
+
+        if(vmclass == null){
+            editarea.removeAll();
+            currentview = null;
+            return;
+        }
+
+        OpenGG.asyncExec(() -> {
+            try{
+                ViewModel cvm = (ViewModel) vmclass.newInstance();
+                cvm.setComponent(component);
+                cvm.updateLocal();
+                useViewModel(cvm);
+            }catch(InstantiationException | IllegalAccessException ex){
+                GGConsole.error("Failed to create instance of a ComponentViewModel for " + component.getName() + ", is there a default constructor?");
             }
         });
-        tree.pack();
+
+        window.setVisible(true);
+    }
+
+    private static TreePath findById(int id) {
+        Enumeration<TreeNode> e = WorldEditor.upperTreeNode.depthFirstEnumeration();
+        while (e.hasMoreElements()) {
+            DefaultMutableTreeNode node = (DefaultMutableTreeNode) e.nextElement();
+            if (Integer.parseInt(node.toString().substring(node.toString().lastIndexOf(":") + 2 )) == id) {
+                return new TreePath(node.getPath());
+            }
+        }
+        return null;
     }
 
     public static void setView(GGView view){
         currentview = view;
     }
 
-    public static void close(){
-
+    public static JFrame getFrame(){
+        return window;
     }
 
     @Override
@@ -552,13 +632,8 @@ public class WorldEditor extends GGApplication implements Actionable{
         ViewModelComponentRegistry.createRegisters();
         WorldEngine.getCurrent().setEnabled(false);
 
-        display.asyncExec(() -> {
-            initSWT2();
-            refreshComponentList();
-
-            updateAddRegion();
-            shell.open();
-        });
+        refreshComponentList();
+        updateAddRegion();
 
         BindController.addBind(ControlType.KEYBOARD, "forward", KEY_W);
         BindController.addBind(ControlType.KEYBOARD, "backward", KEY_S);
@@ -582,19 +657,19 @@ public class WorldEditor extends GGApplication implements Actionable{
         BindController.addController(transmitter);
         WorldEngine.shouldUpdate(false);
         RenderEngine.setProjectionData(ProjectionData.getPerspective(100, 0.2f, 3000f));
-        Model m = Resource.getModel("sphere");
-        Drawable pos = m.getDrawable();
+
+        var cube = ObjectCreator.createCube(5);
         RenderGroup group = new RenderGroup("renderer");
-        group.add(pos);
+        group.add(cube);
+
 
         RenderEngine.addRenderPath(new RenderPath("editorrender", () -> {
             for(Component c : WorldEngine.getCurrent().getAll()){
                 if(c instanceof Renderable) continue;
-                pos.setMatrix(new Matrix4f().translate(c.getPosition()).rotate(c.getRotation()).scale(new Vector3f(0.4f)));
+                cube.setMatrix(new Matrix4f().translate(c.getPosition()).rotate(c.getRotation()).scale(new Vector3f(0.4f)));
                 group.render();
             }
         }));
-
         Executable autosave = new Executable(){
             @Override
             public void execute(){
@@ -610,32 +685,36 @@ public class WorldEditor extends GGApplication implements Actionable{
         };
 
         OpenGG.asyncExec(60 * 5, autosave);
+
+        WorldEngine.getCurrent().getRenderEnvironment().setSkybox(new Skybox(Texture.getSRGBCubemap(Resource.getTexturePath("skybox\\majestic_ft.png"),
+                Resource.getTexturePath("skybox\\majestic_bk.png"),
+                Resource.getTexturePath("skybox\\majestic_up.png"),
+                Resource.getTexturePath("skybox\\majestic_dn.png"),
+                Resource.getTexturePath("skybox\\majestic_rt.png"),
+                Resource.getTexturePath("skybox\\majestic_lf.png")), 1500f));
+
+        window.setVisible(true);
     }
 
     @Override
     public void render(){
-        //ShaderController.setPerspective(90, OpenGG.getWindow().getRatio(), 0.2f, 3000f);
+
     }
 
     @Override
     public void update(float delta){
-        if(display.isDisposed()){
-            return;
+        i++;
+        if (i == 15) {
+            i = 0;
+            if (currentview != null && currentview.isComplete()) {
+                currentview.update();
+            }
         }
-        display.syncExec(() -> {
-            i++;
-            if(i == 15){
-                i = 0;
-                if(currentview != null && currentview.isComplete()){
-                    currentview.update();
-                }
-            }
 
-            if(refresh){
-                refreshComponentList();
-                refresh = false;
-            }
-        });
+        if (refresh) {
+            refreshComponentList();
+            refresh = false;
+        }
 
         currot.x += controlrot.x * rotspeed * delta;
         currot.y += controlrot.y * rotspeed * delta;
@@ -645,10 +724,9 @@ public class WorldEditor extends GGApplication implements Actionable{
         Vector3f nvector = cam.getRot().invert().transform(new Vector3f(control).multiply(delta * 5));
 
         cam.setPos(cam.getPos().add(nvector.multiply(10)));
-        display.asyncExec(() -> {
+        //window.asyncExec(() -> {
             consoletext.setText(cam.getPos().add(nvector.multiply(10)).toString());
-        });
-
+        //});
     }
 
     @Override
