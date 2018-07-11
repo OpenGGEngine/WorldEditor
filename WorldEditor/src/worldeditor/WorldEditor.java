@@ -42,6 +42,7 @@ import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Enumeration;
 import java.util.Objects;
 
@@ -99,9 +100,6 @@ public class WorldEditor extends GGApplication implements Actionable{
     }
 
     public static void initSwing(){
-        int minClientWidth = 1920;
-        int minClientHeight = 1080;
-
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (ClassNotFoundException e) {
@@ -595,16 +593,15 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         OpenGG.asyncExec(() -> {
             try{
-                ViewModel cvm = (ViewModel) vmclass.newInstance();
+                ViewModel cvm = (ViewModel) vmclass.getDeclaredConstructor().newInstance();
                 cvm.setComponent(component);
                 cvm.updateLocal();
                 useViewModel(cvm);
-            }catch(InstantiationException | IllegalAccessException ex){
+                window.setVisible(true);
+            }catch(InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException ex){
                 GGConsole.error("Failed to create instance of a ComponentViewModel for " + component.getName() + ", is there a default constructor?");
             }
         });
-
-        window.setVisible(true);
     }
 
     private static TreePath findById(int id) {
@@ -721,12 +718,6 @@ public class WorldEditor extends GGApplication implements Actionable{
         currot.z += controlrot.z * rotspeed * delta;
         cam.setRot(new Quaternionf(new Vector3f(0, currot.y, currot.z)).multiply(new Quaternionf(new Vector3f(currot.x, 0, 0))));
 
-        Vector3f nvector = cam.getRot().invert().transform(new Vector3f(control).multiply(delta * 5));
-
-        cam.setPos(cam.getPos().add(nvector.multiply(10)));
-        //window.asyncExec(() -> {
-            consoletext.setText(cam.getPos().add(nvector.multiply(10)).toString());
-        //});
     }
 
     @Override

@@ -80,6 +80,15 @@ public class TextureSelectionDialog extends JDialog {
         newtex.setToolTipText("Relative or local texture filename");
         input.add(newtex);
 
+        newtex.addActionListener((e) -> {
+            try{
+                container.value = Resource.getTextureData(newtex.getText());
+                this.dispose();
+            }catch(Exception ex){
+                GGConsole.warning("Failed to load texture at " + newtex.getText());
+            }
+        });
+
         JButton enter = new JButton();
         enter.setText("Load Texture");
         input.add(enter);

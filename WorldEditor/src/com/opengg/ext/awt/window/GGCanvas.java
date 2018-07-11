@@ -52,15 +52,15 @@ public class GGCanvas extends JPanel implements Window {
         this.setLayout(new BorderLayout());
         this.add(canvas);
 
-        this.setMinimumSize(new Dimension(info.width, info.height));
+        this.setPreferredSize(new Dimension(info.width, info.height));
+        canvas.setPreferredSize(new Dimension(info.width, info.height));
         container.add(this);
-        container.doLayout();
 
         canvas.init();
 
-        this.addMouseListener(mouseCallback = new AWTMouseButtonHandler());
-        this.addKeyListener(keyCallback = new AWTKeyboardHandler());
-        this.addMouseMotionListener(mousePosCallback = new AWTMousePosHandler());
+        container.addMouseListener(mouseCallback = new AWTMouseButtonHandler());
+        container.addKeyListener(keyCallback = new AWTKeyboardHandler());
+        container.addMouseMotionListener(mousePosCallback = new AWTMousePosHandler());
 
         KeyboardController.setHandler(keyCallback);
         MouseController.setPosHandler(mousePosCallback);

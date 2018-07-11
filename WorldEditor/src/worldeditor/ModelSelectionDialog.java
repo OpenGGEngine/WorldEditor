@@ -79,6 +79,15 @@ public class ModelSelectionDialog extends JDialog {
         newtex.setPreferredSize(new Dimension(300, 20));
         input.add(newtex);
 
+        newtex.addActionListener((e) -> {
+            try{
+                container.set(Resource.getModel(newtex.getText()));
+                this.dispose();
+            }catch(Exception ex){
+                GGConsole.warning("Failed to load model at " + newtex.getText());
+            }
+        });
+
         JButton enter = new JButton();
         enter.setText("Load Model");
         input.add(enter);

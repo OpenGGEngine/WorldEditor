@@ -10,11 +10,11 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="lib" level="application" />
     <orderEntry type="module" module-name="com.opengg.base" />
     <orderEntry type="module" module-name="com.opengg.console" />
     <orderEntry type="module" module-name="com.opengg.core" />
     <orderEntry type="module" module-name="com.opengg.math" />
     <orderEntry type="module" module-name="com.opengg.system" />
+    <orderEntry type="library" name="lwjgl" level="application" />
   </component>
 </module>
