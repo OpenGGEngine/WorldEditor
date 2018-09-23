@@ -1,7 +1,7 @@
 @version 4.2
 @glsl define LIGHTNUM 100
 
-@fields
+
 layout(location = 0) out vec4 fcolor;
 
 in vertexData{
@@ -18,7 +18,7 @@ struct Light
 	float lightdistance2;
 };
 
-layout (std140) uniform LightBuffer {
+layout(std140) uniform LightBuffer {
 	Light lights[LIGHTNUM];
 };
 
@@ -44,7 +44,7 @@ vec3 diffuse;
 vec4 color;
 vec4 finalcolor;
 
-@code
+
 void genPhong(){
     eyedir = normalize(camera - pos.xyz);
 

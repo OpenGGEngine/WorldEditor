@@ -22,8 +22,9 @@ public class AWTKeyboardHandler extends KeyboardHandler implements KeyListener {
 
     @Override
     public void keyPressed(KeyEvent e) {
-        System.out.println("yo gabba gabba");
         int nkey = e.getKeyCode();
+        if(keys[nkey] == true) return;
+
 
         KeyboardController.keyPressed(nkey);
         keys[nkey] = true;
@@ -32,6 +33,7 @@ public class AWTKeyboardHandler extends KeyboardHandler implements KeyListener {
     @Override
     public void keyReleased(KeyEvent e) {
         int nkey = e.getKeyCode();
+        if(keys[nkey] == false) return;
 
         KeyboardController.keyReleased(nkey);
         keys[nkey] = false;

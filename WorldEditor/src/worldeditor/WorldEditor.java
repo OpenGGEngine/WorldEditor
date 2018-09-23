@@ -6,7 +6,9 @@
 package worldeditor;
 
 import com.opengg.core.GGInfo;
+import com.opengg.core.console.DefaultLoggerOutputConsumer;
 import com.opengg.core.console.GGConsole;
+import com.opengg.core.console.Level;
 import com.opengg.core.engine.*;
 import com.opengg.core.extension.ExtensionManager;
 import com.opengg.core.io.ControlType;
@@ -43,6 +45,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Objects;
 
@@ -99,7 +102,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         OpenGG.initialize(new WorldEditor(), w);
     }
 
-    public static void initSwing(){
+    public static void initSwing() {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (ClassNotFoundException e) {
@@ -113,9 +116,8 @@ public class WorldEditor extends GGApplication implements Actionable{
         }
 
 
-
         window = new JFrame();
-        window.setMinimumSize(new Dimension(1920,1080));
+        window.setMinimumSize(new Dimension(1920, 1080));
         window.setIconImage(new ImageIcon("resources\\tex\\emak.png").getImage());
         window.setLayout(new BorderLayout());
         window.setTitle("World Editor");
@@ -152,27 +154,19 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         var gamepath = new JMenuItem();
         gamepath.setText("Set root game path");
-        gamepath.addActionListener((e) -> {
-            createGamePathChooser();
-        });
+        gamepath.addActionListener((e) -> createGamePathChooser());
 
         var jarload = new JMenuItem();
         jarload.setText("Load game JAR");
-        jarload.addActionListener((e) -> {
-            createJarLoadChooser();
-        });
+        jarload.addActionListener((e) -> createJarLoadChooser());
 
         var loadmap = new JMenuItem();
         loadmap.setText("Load world");
-        loadmap.addActionListener((e) -> {
-            createWorldLoadChooser();
-        });
+        loadmap.addActionListener((e) -> createWorldLoadChooser());
 
         var savemap = new JMenuItem();
         savemap.setText("Save world");
-        savemap.addActionListener((e) -> {
-            createWorldSaveChooser();
-        });
+        savemap.addActionListener((e) -> createWorldSaveChooser());
 
         fileMenu.add(gamepath);
         fileMenu.add(jarload);
@@ -249,19 +243,9 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         console.setViewportView(consoletext);
 
-        PrintStream oldout = System.out;
-        OutputStream out = new OutputStream() {
-            @Override
-            public void write(int b) throws IOException {
-                //if (consoletext.isEnabled()) return;
-                consoletext.append(String.valueOf((char) b));
-                oldout.write(b);
-            }
-        };
+        GGConsole.addOutputConsumer(new DefaultLoggerOutputConsumer(Level.DEBUG, s -> consoletext.append(s + "\n")));
 
-         System.setOut(new PrintStream(out));
-
-         setupTree();
+        setupTree();
 
          mainpanel.doLayout();
          window. addWindowListener(new WindowAdapter()  {
@@ -317,6 +301,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         var result = resultfile.getAbsolutePath();
 
         ViewModelComponentRegistry.clearRegistry();
+        ViewModelComponentRegistry.createDefaultRegisters();
         ViewModelComponentRegistry.registerAllFromJar(result);
         ViewModelComponentRegistry.createRegisters();
         updateAddRegion();
@@ -333,7 +318,7 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         OpenGG.syncExec(() -> {
             WorldEngine.useWorld(WorldEngine.loadWorld(result));
-            RenderEngine.useCamera(cam);
+            RenderEngine.useView(cam);
             BindController.addController(transmitter);
         });
 
@@ -344,6 +329,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         editarea.removeAll();
         GGView view = new GGView(cvm);
         editarea.add(view);
+        editarea.validate();
         currentview = view;
     }
 
@@ -354,7 +340,7 @@ public class WorldEditor extends GGApplication implements Actionable{
                 .map(reg -> reg.getComponent().getSimpleName())
                 .sorted()
                 .toArray(String[]::new);
-
+        System.out.println(Arrays.toString(strings));
         JList<String> classes = new JList<>(strings);
         classes.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
         classes.setCellRenderer(new DefaultListCellRenderer(){
@@ -379,6 +365,8 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         JButton creator = new JButton("Create Component");
         addregion.add(creator);
+
+        addregion.validate();
 
         classes.addListSelectionListener(s -> {
             if (!s.getValueIsAdjusting()) {
@@ -638,15 +626,15 @@ public class WorldEditor extends GGApplication implements Actionable{
         BindController.addBind(ControlType.KEYBOARD, "right", KEY_D);
         BindController.addBind(ControlType.KEYBOARD, "up", KEY_SPACE);
         BindController.addBind(ControlType.KEYBOARD, "down", KEY_LEFT_SHIFT);
-        BindController.addBind(ControlType.KEYBOARD, "lookright", KEY_RIGHT);
-        BindController.addBind(ControlType.KEYBOARD, "lookleft", KEY_LEFT);
-        BindController.addBind(ControlType.KEYBOARD, "lookup", KEY_UP);
-        BindController.addBind(ControlType.KEYBOARD, "lookdown", KEY_DOWN);
+        BindController.addBind(ControlType.KEYBOARD, "lookright", KEY_Q);
+        BindController.addBind(ControlType.KEYBOARD, "lookleft", KEY_E);
+        BindController.addBind(ControlType.KEYBOARD, "lookup", KEY_R);
+        BindController.addBind(ControlType.KEYBOARD, "lookdown", KEY_F);
         BindController.addBind(ControlType.KEYBOARD, "clear", KEY_G);
 
         cam = new Camera();
-        RenderEngine.useCamera(cam);
-        cam.setPos(new Vector3f(0, 0, -10));
+        RenderEngine.useView(cam);
+        cam.setPosition(new Vector3f(0, 0, -10));
 
         transmitter = new EditorTransmitter();
         transmitter.editor = this;
@@ -659,17 +647,16 @@ public class WorldEditor extends GGApplication implements Actionable{
         RenderGroup group = new RenderGroup("renderer");
         group.add(cube);
 
-
-        RenderEngine.addRenderPath(new RenderPath("editorrender", () -> {
+        RenderEngine.addRenderPath(new RenderOperation("editorrender", () -> {
             for(Component c : WorldEngine.getCurrent().getAll()){
                 if(c instanceof Renderable) continue;
                 cube.setMatrix(new Matrix4f().translate(c.getPosition()).rotate(c.getRotation()).scale(new Vector3f(0.4f)));
                 group.render();
             }
         }));
-        Executable autosave = new Executable(){
+        Runnable autosave = new Runnable(){
             @Override
-            public void execute(){
+            public void run(){
                 try{
                     GGConsole.log("Autosaving world to autosave.bwf...");
                     WorldEngine.saveWorld(WorldEngine.getCurrent(), "autosave.bwf");
@@ -716,8 +703,12 @@ public class WorldEditor extends GGApplication implements Actionable{
         currot.x += controlrot.x * rotspeed * delta;
         currot.y += controlrot.y * rotspeed * delta;
         currot.z += controlrot.z * rotspeed * delta;
-        cam.setRot(new Quaternionf(new Vector3f(0, currot.y, currot.z)).multiply(new Quaternionf(new Vector3f(currot.x, 0, 0))));
+        cam.setRotation(new Quaternionf(new Vector3f(0, currot.y, currot.z)).multiply(new Quaternionf(new Vector3f(currot.x, 0, 0))));
 
+        Vector3f nvector = new Vector3f(control).inverse().multiply(delta * 15);
+
+        nvector = cam.getRotation().transform(nvector);
+        cam.setPosition(cam.getPosition().add(nvector));
     }
 
     @Override

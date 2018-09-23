@@ -1,7 +1,7 @@
 @version 4.2
-@include stdfrag.ggsl
 
-@code
+layout(location = 0) out vec4 fcolor;
+
 main() {
     fcolor = vec4(1,0,0,1);
 }

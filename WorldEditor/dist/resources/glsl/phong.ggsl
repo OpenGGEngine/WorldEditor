@@ -2,7 +2,6 @@
 @include light.ggsl
 @include stdfrag.ggsl
 
-@fields
 uniform float uvmultx;
 uniform float uvmulty;
 uniform vec3 camera;
@@ -11,27 +10,38 @@ float bloomMin = 0.9;
 float vis = 1;
 vec3 eyedir;
 
-@code
+
 generatePhongData(){
     eyedir = normalize(camera - pos.xyz);
 }
 
 vec3 getPhongFrom(Light light){
-    
-	float distance = length( light.lightpos.xyz - pos.xyz );
-	float attenuation =  clamp((1.0 - (distance/light.lightdistance)), 0.0, 10.0);
-	attenuation = attenuation * attenuation;
+    float attenuation = 1.0f;
 
-	vec3 lightDir = normalize(light.lightpos.xyz - pos.xyz);
+    vec3 lightDir = -light.dir.xyz;
+
+	if(light.type == 2.0f){
+        lightDir = normalize(-light.dir.xyz);
+	}else{
+		float distance = length( light.lightpos.xyz - pos.xyz );
+	    attenuation =  1.0f / (1.0f + (1.0f / light.lightdistance) * distance * distance);
+	    lightDir = normalize(light.lightpos.xyz - pos.xyz);
+	}
+
 	vec3 halfwayDir = normalize(lightDir + eyedir);
 
     float cosTheta = max(dot( n,lightDir ), 0.0f );
-    vec3 fdif = diffuse * light.color.xyz * cosTheta * attenuation;
+    vec3 fdif = diffuse * cosTheta;
 	
-    float cosAlpha = clamp(max(dot(n, halfwayDir), 0.0), 0, 1);
-	vec3 fspec = specular * light.color.xyz * pow(cosAlpha, specpow) * attenuation;
-	
-    vec3 fragColor = fdif + fspec;
+    float cosAlpha = max(dot(n, halfwayDir), 0.0);
+	vec3 fspec = specular * specpowvec * pow(cosAlpha, specpow);
+
+	float shadowcover = 1;
+    if(shadow != 0){
+        shadowcover = getShadowCoverage(light);
+    }
+
+    vec3 fragColor = (fdif + fspec) * attenuation * shadowcover * light.color.rgb;
 
     return fragColor;
 }

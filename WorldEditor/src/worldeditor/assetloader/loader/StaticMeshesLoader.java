@@ -108,8 +108,8 @@ public class StaticMeshesLoader {
             material.hascolmap = true;
             material.mapKdFilename = textPath;
         }
-        
-        Vector4f ambient = Material.DEFAULT_COLOUR;
+        /*
+        //Vector4f ambient = Material.DEFAULT_COLOUR;
         int result = aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_AMBIENT, aiTextureType_NONE, 0,
                 colour);
         if (result == 0) {
@@ -117,7 +117,7 @@ public class StaticMeshesLoader {
         }
         material.ka = new Vector3f(ambient);
         
-        Vector4f diffuse = Material.DEFAULT_COLOUR;
+        //Vector4f diffuse = Material.DEFAULT_COLOUR;
         result = aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_DIFFUSE, aiTextureType_NONE, 0,
                 colour);
         if (result == 0) {
@@ -126,7 +126,7 @@ public class StaticMeshesLoader {
         
         material.kd = new Vector3f(diffuse);
         
-        Vector4f specular = Material.DEFAULT_COLOUR;
+        //Vector4f specular = Material.DEFAULT_COLOUR;
         result = aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_SPECULAR, aiTextureType_NONE, 0,
                 colour);
         if (result == 0) {
@@ -134,7 +134,7 @@ public class StaticMeshesLoader {
         }
         
         material.ks = new Vector3f(specular);
-        
+        */
         return material;
     }
     

@@ -12,13 +12,14 @@ import org.lwjgl.opengl.GL;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.lang.reflect.InvocationTargetException;
 
 import static org.lwjgl.opengl.GL11.GL_NO_ERROR;
 import static org.lwjgl.opengl.GL11.glGetError;
 
 public class GGCanvas extends JPanel implements Window {
-    private WindowInfo info;
     private AWTGLCanvas canvas;
     private AWTMousePosHandler mousePosCallback;
     private AWTMouseButtonHandler mouseCallback;
@@ -58,19 +59,19 @@ public class GGCanvas extends JPanel implements Window {
 
         canvas.init();
 
-        container.addMouseListener(mouseCallback = new AWTMouseButtonHandler());
-        container.addKeyListener(keyCallback = new AWTKeyboardHandler());
-        container.addMouseMotionListener(mousePosCallback = new AWTMousePosHandler());
+        canvas.setFocusable(true);
+        canvas.requestFocusInWindow();
+        canvas.addMouseListener(mouseCallback = new AWTMouseButtonHandler());
+        canvas.addKeyListener(keyCallback = new AWTKeyboardHandler());
+        canvas.addMouseMotionListener(mousePosCallback = new AWTMousePosHandler());
 
         KeyboardController.setHandler(keyCallback);
         MouseController.setPosHandler(mousePosCallback);
         MouseController.setButtonHandler(mouseCallback);
 
-        if(glGetError() == GL_NO_ERROR){
-            return;
-        }
-        else
+        if (glGetError() != GL_NO_ERROR) {
             throw new WindowCreationException("OpenGL initialization during window creation failed");
+        }
     }
 
     @Override
@@ -131,6 +132,16 @@ public class GGCanvas extends JPanel implements Window {
 
     @Override
     public void setVSync(boolean vsync) {
+
+    }
+
+    @Override
+    public void setCurrentContext() {
+        canvas.makeCurrent();
+    }
+
+    @Override
+    public void setCursorLock(boolean lock) {
 
     }
 }
