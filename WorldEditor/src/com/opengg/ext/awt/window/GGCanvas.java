@@ -12,8 +12,7 @@ import org.lwjgl.opengl.GL;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
+import java.awt.event.*;
 import java.lang.reflect.InvocationTargetException;
 
 import static org.lwjgl.opengl.GL11.GL_NO_ERROR;
@@ -64,6 +63,17 @@ public class GGCanvas extends JPanel implements Window {
         canvas.addMouseListener(mouseCallback = new AWTMouseButtonHandler());
         canvas.addKeyListener(keyCallback = new AWTKeyboardHandler());
         canvas.addMouseMotionListener(mousePosCallback = new AWTMousePosHandler());
+
+        var panel = this;
+
+        canvas.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if(e.getKeyCode() == KeyEvent.VK_ESCAPE){
+                    panel.getParent().requestFocusInWindow();
+                }
+            }
+        });
 
         KeyboardController.setHandler(keyCallback);
         MouseController.setPosHandler(mousePosCallback);
@@ -143,5 +153,9 @@ public class GGCanvas extends JPanel implements Window {
     @Override
     public void setCursorLock(boolean lock) {
 
+    }
+
+    public boolean hasFocus(){
+        return canvas.hasFocus();
     }
 }

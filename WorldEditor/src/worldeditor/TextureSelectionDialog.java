@@ -7,33 +7,27 @@ package worldeditor;
 
 import com.opengg.core.console.GGConsole;
 import com.opengg.core.engine.Resource;
+import com.opengg.core.render.texture.Texture;
 import com.opengg.core.render.texture.TextureData;
 import com.opengg.core.render.texture.TextureManager;
+import com.opengg.core.util.GGFuture;
 
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.concurrent.Future;
 
 /**
  *
  * @author Javier
  */
 public class TextureSelectionDialog extends JDialog {
-    LambdaContainer<TextureData> container = new LambdaContainer<>();
+    GGFuture<TextureData> future = new GGFuture<>();
     
-    public static TextureData getData(Window window){
-
+    public static GGFuture<TextureData> getData(Window window){
         TextureSelectionDialog shell = new TextureSelectionDialog(window);
-        
-        while(!shell.isActive()){
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-        
-        return shell.container.value;
+
+        return shell.future;
     }
     
     public TextureSelectionDialog(Window window){
@@ -66,14 +60,14 @@ public class TextureSelectionDialog extends JDialog {
 
             button.addActionListener(a -> {
                 String name = button.getText();
-                container.value = TextureManager.getTextureData(name);
+                future.set(TextureManager.getTextureData(name));
 
                 this.dispose();
             });
         }
 
         JPanel input = new JPanel();
-        input.setLayout(new FlowLayout());
+        input.setLayout(new GridLayout(2,1));
         content.add(input);
 
         JTextField newtex = new JTextField();
@@ -82,7 +76,7 @@ public class TextureSelectionDialog extends JDialog {
 
         newtex.addActionListener((e) -> {
             try{
-                container.value = Resource.getTextureData(newtex.getText());
+                future.set(Resource.getTextureData(newtex.getText()));
                 this.dispose();
             }catch(Exception ex){
                 GGConsole.warning("Failed to load texture at " + newtex.getText());
@@ -94,7 +88,7 @@ public class TextureSelectionDialog extends JDialog {
         input.add(enter);
         enter.addActionListener(e -> {
             try{
-                container.value = Resource.getTextureData(newtex.getText());
+                future.set(Resource.getTextureData(newtex.getText()));
                 this.dispose();
             }catch(Exception ex){
                 GGConsole.warning("Failed to load texture at " + newtex.getText());

@@ -197,7 +197,7 @@ public class GGElement extends JPanel{
 
             button.addActionListener(e ->
                 OpenGG.asyncExec(() -> {
-                    TextureData data = TextureSelectionDialog.getData(SwingUtilities.getWindowAncestor(this));
+                    TextureData data = TextureSelectionDialog.getData(SwingUtilities.getWindowAncestor(this)).get();
                     if (data == null) return;
 
                     element.value = data;
@@ -215,7 +215,7 @@ public class GGElement extends JPanel{
 
             button.addActionListener(e ->
                 OpenGG.asyncExec(() -> {
-                    Model model = ModelSelectionDialog.getModel(SwingUtilities.getWindowAncestor(this));
+                    Model model = ModelSelectionDialog.getModel(SwingUtilities.getWindowAncestor(this)).get();
                     if (model == null) return;
                     element.value = model;
                     if (view != null && element.autoupdate) fireEvent(element);

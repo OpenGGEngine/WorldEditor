@@ -11,23 +11,23 @@ import com.opengg.core.engine.Resource;
 import com.opengg.core.engine.ResourceFuture;
 import com.opengg.core.model.Model;
 import com.opengg.core.model.ModelManager;
+import com.opengg.core.util.GGFuture;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.concurrent.Future;
 
 /**
  *
  * @author Javier
  */
 public class ModelSelectionDialog extends JDialog {
-    ResourceFuture container = new ResourceFuture();
+    GGFuture<Model> future = new GGFuture<>();
     
-    public static Model getModel(Window window){
+    public static GGFuture<Model> getModel(Window window){
         ModelSelectionDialog shell = new ModelSelectionDialog(window);
 
-        var model = shell.container.get();
-
-        return (Model) model;
+        return shell.future;
     }
     
     public ModelSelectionDialog(Window window){
@@ -64,7 +64,7 @@ public class ModelSelectionDialog extends JDialog {
 
             button.addActionListener(a -> {
                 String name = button.getText();
-                container.set(Resource.getModel(name));
+                future.set(Resource.getModel(name));
 
                 this.dispose();
             });
@@ -81,7 +81,7 @@ public class ModelSelectionDialog extends JDialog {
 
         newtex.addActionListener((e) -> {
             try{
-                container.set(Resource.getModel(newtex.getText()));
+                future.set(Resource.getModel(newtex.getText()));
                 this.dispose();
             }catch(Exception ex){
                 GGConsole.warning("Failed to load model at " + newtex.getText());
@@ -93,7 +93,7 @@ public class ModelSelectionDialog extends JDialog {
         input.add(enter);
         enter.addActionListener(e -> {
             try{
-                container.set(Resource.getModel(newtex.getText()));
+                future.set(Resource.getModel(newtex.getText()));
                 this.dispose();
             }catch(Exception ex){
                 GGConsole.warning("Failed to load model at " + newtex.getText());

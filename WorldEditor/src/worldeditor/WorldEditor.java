@@ -5,6 +5,7 @@
  */
 package worldeditor;
 
+import com.opengg.core.Configuration;
 import com.opengg.core.GGInfo;
 import com.opengg.core.console.DefaultLoggerOutputConsumer;
 import com.opengg.core.console.GGConsole;
@@ -12,13 +13,12 @@ import com.opengg.core.console.Level;
 import com.opengg.core.engine.*;
 import com.opengg.core.extension.ExtensionManager;
 import com.opengg.core.io.ControlType;
-import com.opengg.core.math.Matrix4f;
-import com.opengg.core.math.Quaternionf;
-import com.opengg.core.math.Vector3f;
-import com.opengg.core.math.Vector3fm;
+import com.opengg.core.io.input.mouse.MouseController;
+import com.opengg.core.math.*;
 import com.opengg.core.render.*;
 import com.opengg.core.render.objects.ObjectCreator;
 import com.opengg.core.render.texture.Texture;
+import com.opengg.core.render.window.WindowController;
 import com.opengg.core.render.window.WindowInfo;
 import com.opengg.core.world.*;
 import com.opengg.core.world.Action;
@@ -28,6 +28,7 @@ import com.opengg.core.world.components.viewmodel.ViewModel;
 import com.opengg.core.world.components.viewmodel.ViewModelComponentRegistry;
 
 import com.opengg.ext.awt.AWTExtension;
+import com.opengg.ext.awt.window.GGCanvas;
 import worldeditor.assetloader.AssetDialog;
 
 import javax.swing.*;
@@ -66,8 +67,6 @@ public class WorldEditor extends GGApplication implements Actionable{
     private static JPanel treearea;
     private static Vector3fm control = new Vector3fm();
     private static Vector3fm controlrot = new Vector3fm();
-    private static Vector3fm currot = new Vector3fm();
-    private static float rotspeed = 30;
     private static Camera cam;
     private static EditorTransmitter transmitter;
     private static JTextArea consoletext;
@@ -451,6 +450,7 @@ public class WorldEditor extends GGApplication implements Actionable{
                 WorldEngine.getCurrent().attach(ncomp);
                 WorldEngine.getCurrent().rescanRenderables();
                 refreshComponentList();
+                ncomp.setPositionOffset(cam.getPosition());
                 tree.setSelectionPath(findById(ncomp.getId()));
             }catch(Exception e){
                 GGConsole.error("Failed to initialize component: " + e.getMessage());
@@ -700,15 +700,18 @@ public class WorldEditor extends GGApplication implements Actionable{
             refresh = false;
         }
 
-        currot.x += controlrot.x * rotspeed * delta;
-        currot.y += controlrot.y * rotspeed * delta;
-        currot.z += controlrot.z * rotspeed * delta;
-        cam.setRotation(new Quaternionf(new Vector3f(0, currot.y, currot.z)).multiply(new Quaternionf(new Vector3f(currot.x, 0, 0))));
 
-        Vector3f nvector = new Vector3f(control).inverse().multiply(delta * 15);
+        if(((GGCanvas)WindowController.getWindow()).hasFocus()){
+            Vector2f mousepos = MouseController.get();
+            float mult = 0.5f;//Configuration.getFloat("sensitivity");
+            Vector3f currot = new Vector3f(mousepos.multiply(mult).y-180, mousepos.multiply(mult).x, 0);
+            cam.setRotation(new Quaternionf(new Vector3f(currot.x, currot.y, currot.z)).invert());
 
-        nvector = cam.getRotation().transform(nvector);
-        cam.setPosition(cam.getPosition().add(nvector));
+            Vector3f nvector = new Vector3f(control).inverse().multiply(delta * 15);
+
+            nvector = new Quaternionf(new Vector3f(currot.x, currot.y, currot.z)).transform(nvector);
+            cam.setPosition(cam.getPosition().add(nvector));
+        }
     }
 
     @Override
