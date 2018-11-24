@@ -21,7 +21,7 @@ public class Theme {
     public static Font consoleFont = new Font("Verdana",0,11);
     public static Font toolbarFont = new Font("Verdana",0,12);
     public static ImageIcon vec3 =  new ImageIcon(new ImageIcon("resources/icons/smallcoord.png","coord").getImage());
-    public static ImageIcon trash = new ImageIcon("resources/icons/trash.png","remove");
+    public static ImageIcon trash = new ImageIcon("resources/icons/remove.png","remove");
 
     public static void applyTheme() throws UnsupportedLookAndFeelException {
         UIManager.setLookAndFeel(new MetalLookAndFeel());
