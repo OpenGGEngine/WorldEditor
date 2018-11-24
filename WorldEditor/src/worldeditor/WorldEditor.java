@@ -32,11 +32,13 @@ import com.opengg.ext.awt.window.GGCanvas;
 import worldeditor.assetloader.AssetDialog;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.border.EtchedBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.plaf.metal.MetalLookAndFeel;
 import javax.swing.tree.*;
 
 import java.awt.*;
@@ -54,7 +56,7 @@ import static com.opengg.core.io.input.keyboard.Key.*;
 
 
 public class WorldEditor extends GGApplication implements Actionable{
-
+    private static boolean cool = true;
     private static final Object initlock = new Object();
     private static JFrame window;
     private static JPanel mainpanel;
@@ -103,18 +105,13 @@ public class WorldEditor extends GGApplication implements Actionable{
 
     public static void initSwing() {
         try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (InstantiationException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (UnsupportedLookAndFeelException e) {
+            //UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            if(cool) {
+                Theme.applyTheme();
+            }
+        } catch (Exception e){
             e.printStackTrace();
         }
-
-
         window = new JFrame();
         window.setMinimumSize(new Dimension(1920, 1080));
         window.setIconImage(new ImageIcon("resources\\tex\\emak.png").getImage());
@@ -189,9 +186,11 @@ public class WorldEditor extends GGApplication implements Actionable{
         gbc.gridheight = 1;
 
         mainpanel.add(treearea, gbc);
+        mainpanel.add(treearea, gbc);
 
         addregion = new JPanel();
-        addregion.setLayout(new BoxLayout(addregion, BoxLayout.PAGE_AXIS));
+        //addregion.setLayout(new BoxLayout(addregion, BoxLayout.PAGE_AXIS));
+        addregion.setLayout(new GridBagLayout());
         addregion.setBorder(raisedetched);
 
         gbc.gridx = 0;
@@ -225,7 +224,6 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         JScrollPane console = new JScrollPane();
         console.setLayout(new ScrollPaneLayout());
-        console.setBorder(raisedetched);
         console.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         console.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         console.setWheelScrollingEnabled(true);
@@ -340,30 +338,36 @@ public class WorldEditor extends GGApplication implements Actionable{
                 .sorted()
                 .toArray(String[]::new);
         System.out.println(Arrays.toString(strings));
+        GridBagConstraints c = new GridBagConstraints();
         JList<String> classes = new JList<>(strings);
         classes.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
+        classes.setLayoutOrientation(JList.HORIZONTAL_WRAP);
         classes.setCellRenderer(new DefaultListCellRenderer(){
             @Override
             public java.awt.Component getListCellRendererComponent(JList<?> list,
                                                                    Object value, int index, boolean isSelected,
                                                                    boolean cellHasFocus) {
                 JLabel listCellRendererComponent = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected,cellHasFocus);
-                listCellRendererComponent.setBorder(BorderFactory.createMatteBorder(1, 1, 1, 1,Color.BLACK));
+                listCellRendererComponent.setBorder(
+                        BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1, 1, 1, 1,Theme.buttonBG)
+                        ,new EmptyBorder(4,4,4,4)));
                 listCellRendererComponent.setHorizontalAlignment(CENTER);
-                listCellRendererComponent.setMinimumSize(new Dimension(10,8));
+                //listCellRendererComponent.setMinimumSize(new Dimension(10,8));
                 return listCellRendererComponent;
             }
         });
-        classes.setLayoutOrientation(JList.HORIZONTAL_WRAP);
-        classes.setVisibleRowCount(-1);
+
 
         JScrollPane listScroller = new JScrollPane(classes);
-        listScroller.setPreferredSize(new Dimension(100, 300));
+        listScroller.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        c.fill = GridBagConstraints.BOTH;
+        c.gridwidth = GridBagConstraints.REMAINDER;
+        c.gridx = 0;
+        addregion.add(listScroller,c);
 
-        addregion.add(listScroller);
-
-        JButton creator = new JButton("Create Component");
-        addregion.add(creator);
+        JGradientButton creator = new JGradientButton("Create Component");
+        c.gridy = 1;
+        addregion.add(creator,c);
 
         addregion.validate();
 

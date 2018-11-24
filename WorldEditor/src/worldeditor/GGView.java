@@ -31,7 +31,7 @@ public class GGView extends JPanel{
                 .peek(this::add)
                 .collect(Collectors.toList());
         
-        JButton remove = new JButton();
+        JButton remove = new JGradientButton("Remove Component");
         this.add(remove);
 
         remove.addActionListener(e -> {
@@ -44,7 +44,6 @@ public class GGView extends JPanel{
         gbc.gridx = 0;
         gbc.gridy = GridBagConstraints.RELATIVE;
 
-        remove.setText("Remove Component");
         this.add(remove, gbc);
         this.doLayout();
         this.setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));

@@ -83,8 +83,7 @@ public class TextureSelectionDialog extends JDialog {
             }
         });
 
-        JButton enter = new JButton();
-        enter.setText("Load Texture");
+        JGradientButton enter = new JGradientButton("Load Texture");
         input.add(enter);
         enter.addActionListener(e -> {
             try{

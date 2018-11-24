@@ -41,13 +41,12 @@ public class NewComponentDialog extends JDialog{
             total.add(element);
         }
 
-        JButton create = new JButton("Create Component");
-        
+        JGradientButton create = new JGradientButton("Create Component");
         create.addActionListener(e -> {
             WorldEditor.createComponent(initializer, cvm);
             this.dispose();
         });
-
+        create.setBorderPainted(false);
         total.add(create);
         total.revalidate();
 

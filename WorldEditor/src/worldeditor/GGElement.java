@@ -40,10 +40,11 @@ public class GGElement extends JPanel{
         this.view = view;
 
         this.setLayout(new GridLayout(1,0));//new BoxLayout(this, BoxLayout.LINE_AXIS));
-        this.setBorder(BorderFactory.createTitledBorder(element.name));
+        //this.setBorder(BorderFactory.createTitledBorder(element.name));
+        this.setBorder(Theme.padding);
         this.setSize(400, 100);
+        this.add(new JLabel(element.name+":  "));
         if (element.type == Element.Type.VECTOR4F) {
-
             JFormattedTextField v1 = new JFormattedTextField(new DecimalFormat());
             this.add(v1);
             all.add(v1);
@@ -207,7 +208,7 @@ public class GGElement extends JPanel{
 
         } else if (element.type == Element.Type.MODEL) {
 
-            JButton button = new JButton("Choose Model");
+            JButton button = new JGradientButton("Choose Model");
             this.add(button);
             all.add(button);
 
@@ -225,7 +226,7 @@ public class GGElement extends JPanel{
         }
 
         if (!element.autoupdate) {
-            JButton button = new JButton("Enter");
+            JButton button = new JGradientButton("Enter");
             this.add(button);
             button.addActionListener(e -> {
                 if (view != null) fireEvent(element);
