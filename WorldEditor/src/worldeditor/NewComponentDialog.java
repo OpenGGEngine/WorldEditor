@@ -30,7 +30,6 @@ public class NewComponentDialog extends JDialog{
         total.setLayout(new GridLayout(0,1));
         this.getContentPane().add(total);
 
-
         JScrollPane content = new JScrollPane();
         content.setLayout(new ScrollPaneLayout());
         content.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);

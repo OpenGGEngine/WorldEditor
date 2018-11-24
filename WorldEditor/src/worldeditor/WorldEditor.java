@@ -15,6 +15,8 @@ import com.opengg.core.extension.ExtensionManager;
 import com.opengg.core.io.ControlType;
 import com.opengg.core.io.input.mouse.MouseController;
 import com.opengg.core.math.*;
+import com.opengg.core.model.ggmodel.GGModel;
+import com.opengg.core.model.ggmodel.io.BMFFile;
 import com.opengg.core.render.*;
 import com.opengg.core.render.objects.ObjectCreator;
 import com.opengg.core.render.texture.Texture;
@@ -48,11 +50,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.Objects;
+import java.util.*;
 
 import static com.opengg.core.io.input.keyboard.Key.*;
+import static java.util.Map.entry;
 
 
 public class WorldEditor extends GGApplication implements Actionable{
@@ -74,6 +75,7 @@ public class WorldEditor extends GGApplication implements Actionable{
     private static JTextArea consoletext;
     private static DefaultTreeModel treeModel;
     private static DefaultMutableTreeNode upperTreeNode;
+    private static int wwidth = 1920,wheight = 1080;
     int i = 0;
 
     public static void main(String[] args){
@@ -95,8 +97,8 @@ public class WorldEditor extends GGApplication implements Actionable{
         ExtensionManager.addExtension(new AWTExtension(canvasregion));
 
         WindowInfo w = new WindowInfo();
-        w.width = 640;
-        w.height = 480;
+        w.width = 800;
+        w.height = 600;
         w.resizable = false;
         w.type = "AWT";
         w.vsync = true;
@@ -105,7 +107,6 @@ public class WorldEditor extends GGApplication implements Actionable{
 
     public static void initSwing() {
         try {
-            //UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             if(cool) {
                 Theme.applyTheme();
             }
@@ -114,6 +115,8 @@ public class WorldEditor extends GGApplication implements Actionable{
         }
         window = new JFrame();
         window.setMinimumSize(new Dimension(1920, 1080));
+        wwidth = window.getWidth();
+        wheight = window.getHeight();
         window.setIconImage(new ImageIcon("resources\\tex\\emak.png").getImage());
         window.setLayout(new BorderLayout());
         window.setTitle("World Editor");
@@ -137,6 +140,9 @@ public class WorldEditor extends GGApplication implements Actionable{
         var worldMenu = new JMenu();
         worldMenu.setText("World");
 
+        var objects = new JMenu();
+        objects.setText("Objects");
+
         var assetLoader = new JMenuItem();
         assetLoader.setText("Asset Loader");
         assetLoader.addActionListener((e) -> new AssetDialog(getFrame()));
@@ -145,8 +151,8 @@ public class WorldEditor extends GGApplication implements Actionable{
         menuBar.add(fileMenu);
         menuBar.add(editMenu);
         menuBar.add(worldMenu);
+        menuBar.add(objects);
         menuBar.add(assetLoader);
-
 
         var gamepath = new JMenuItem();
         gamepath.setText("Set root game path");
@@ -169,6 +175,12 @@ public class WorldEditor extends GGApplication implements Actionable{
         fileMenu.add(loadmap);
         fileMenu.add(savemap);
 
+        try {
+            generateObjectMenu(objects);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         var gbc = new GridBagConstraints();
         gbc.weightx = 1;
         gbc.weighty = 1;
@@ -189,7 +201,6 @@ public class WorldEditor extends GGApplication implements Actionable{
         mainpanel.add(treearea, gbc);
 
         addregion = new JPanel();
-        //addregion.setLayout(new BoxLayout(addregion, BoxLayout.PAGE_AXIS));
         addregion.setLayout(new GridBagLayout());
         addregion.setBorder(raisedetched);
 
@@ -259,6 +270,20 @@ public class WorldEditor extends GGApplication implements Actionable{
          synchronized (initlock){
              initlock.notifyAll();
          }
+    }
+
+    private static void generateObjectMenu(JMenu menu) throws IOException {
+        Map<String,GGModel> objectlist = Map.ofEntries(
+          entry("Torus",BMFFile.loadModel("resources\\models\\defaults\\torus.bmf")),
+                entry("Sphere",BMFFile.loadModel("resources\\models\\defaults\\sphere.bmf")),
+                entry("HemiSphere",BMFFile.loadModel("resources\\models\\defaults\\hemi.bmf")),
+                entry("Plane",BMFFile.loadModel("resources\\models\\defaults\\plane.bmf"))
+        );
+        for(Map.Entry<String,GGModel> entry:objectlist.entrySet()){
+            JMenuItem item = new JMenuItem(entry.getKey());
+            menu.add(item);
+        }
+
     }
 
     private static void createWorldSaveChooser() {
@@ -352,17 +377,16 @@ public class WorldEditor extends GGApplication implements Actionable{
                         BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1, 1, 1, 1,Theme.buttonBG)
                         ,new EmptyBorder(4,4,4,4)));
                 listCellRendererComponent.setHorizontalAlignment(CENTER);
-                //listCellRendererComponent.setMinimumSize(new Dimension(10,8));
                 return listCellRendererComponent;
             }
         });
 
 
         JScrollPane listScroller = new JScrollPane(classes);
-        listScroller.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         c.fill = GridBagConstraints.BOTH;
         c.gridwidth = GridBagConstraints.REMAINDER;
         c.gridx = 0;
+        listScroller.setMinimumSize(new Dimension(320,300));
         addregion.add(listScroller,c);
 
         JGradientButton creator = new JGradientButton("Create Component");
@@ -793,4 +817,5 @@ public class WorldEditor extends GGApplication implements Actionable{
             }
         }
     }
+
 }

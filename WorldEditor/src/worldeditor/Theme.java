@@ -11,12 +11,17 @@ public class Theme {
     public static Color scrollBG = Color.decode("#666666");
     public static Color buttonBG = Color.decode("#424242");
     public static Color progressBarBG = Color.decode("#4caf50");
+    public static Color toggleFalse = Color.decode("#F0513F");
+    public static Color toggleTrue = Color.decode("#8BC34F");
     public static Border inputborder = new BevelBorder(BevelBorder.LOWERED);
     public static Border buttonNone = new EmptyBorder(1,1,1,1);
+    public static Border extremeBut = new EmptyBorder(1,6,1,6);
     public static Border defNone = new EmptyBorder(0,0,0,0);
     public static Border padding = new EmptyBorder(12,4,12,4);
     public static Font consoleFont = new Font("Verdana",0,11);
     public static Font toolbarFont = new Font("Verdana",0,12);
+    public static ImageIcon vec3 =  new ImageIcon(new ImageIcon("resources/icons/smallcoord.png","coord").getImage());
+    public static ImageIcon trash = new ImageIcon("resources/icons/trash.png","remove");
 
     public static void applyTheme() throws UnsupportedLookAndFeelException {
         UIManager.setLookAndFeel(new MetalLookAndFeel());
@@ -26,6 +31,7 @@ public class Theme {
         UIManager.put("List.border", Theme.defNone);
         UIManager.put("Panel.background", Theme.mainBG);
         UIManager.put("Label.foreground", Theme.text);
+        UIManager.put("Label.font",consoleFont);
         UIManager.put("TextArea.background", Theme.mainBG);
         UIManager.put("TextArea.foreground", Theme.text);
         UIManager.put("TextArea.font", Theme.consoleFont);
@@ -60,9 +66,9 @@ public class Theme {
         UIManager.put("Button.border", Theme.buttonNone);
         UIManager.put("Button.select", Theme.buttonBG);
         UIManager.put("Button.foreground", Theme.text);
-        UIManager.put("ToggleButton.background", Theme.buttonBG);
+        UIManager.put("ToggleButton.background", Theme.toggleFalse);
         UIManager.put("ToggleButton.border", Theme.buttonNone);
-        UIManager.put("ToggleButton.select", Theme.buttonBG);
+        UIManager.put("ToggleButton.select", Theme.toggleTrue);
         UIManager.put("ToggleButton.foreground", Theme.text);
         UIManager.put("ScrollPane.border", Theme.defNone);
     }

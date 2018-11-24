@@ -25,14 +25,17 @@ public class GGView extends JPanel{
     
     public GGView(ViewModel cvm){
         this.cvm = cvm;
-
+        this.doLayout();
+        this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         elements = cvm.getElements().stream()
                 .map(e -> new GGElement(e, this))
                 .peek(this::add)
                 .collect(Collectors.toList());
         
         JButton remove = new JGradientButton("Remove Component");
-        this.add(remove);
+        remove.setBorder(Theme.extremeBut);
+        remove.setBackground(Theme.toggleFalse);
+        remove.setIcon(Theme.trash);
 
         remove.addActionListener(e -> {
             WorldEngine.markForRemoval(cvm.getComponent());
@@ -40,13 +43,9 @@ public class GGView extends JPanel{
             WorldEditor.refreshComponentList();
             });
 
-        var gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = GridBagConstraints.RELATIVE;
+        remove.setMaximumSize(new Dimension(Integer.MAX_VALUE, remove.getMinimumSize().height));
+        this.add(remove);
 
-        this.add(remove, gbc);
-        this.doLayout();
-        this.setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         complete = true;
     }
     

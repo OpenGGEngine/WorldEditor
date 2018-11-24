@@ -8,14 +8,12 @@ package worldeditor;
 
 import com.opengg.core.console.GGConsole;
 import com.opengg.core.engine.Resource;
-import com.opengg.core.engine.ResourceFuture;
 import com.opengg.core.model.Model;
 import com.opengg.core.model.ModelManager;
 import com.opengg.core.util.GGFuture;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.concurrent.Future;
 
 /**
  *

@@ -39,11 +39,11 @@ public class GGElement extends JPanel{
         this.element = element;
         this.view = view;
 
-        this.setLayout(new GridLayout(1,0));//new BoxLayout(this, BoxLayout.LINE_AXIS));
-        //this.setBorder(BorderFactory.createTitledBorder(element.name));
+        this.setLayout(new GridLayout(1,2));//new BoxLayout(this, BoxLayout.LINE_AXIS));
         this.setBorder(Theme.padding);
-        this.setSize(400, 100);
-        this.add(new JLabel(element.name+":  "));
+        JLabel l = new JLabel(element.name+": ");
+
+        this.add(l);
         if (element.type == Element.Type.VECTOR4F) {
             JFormattedTextField v1 = new JFormattedTextField(new DecimalFormat());
             this.add(v1);
@@ -78,7 +78,7 @@ public class GGElement extends JPanel{
             v4.addPropertyChangeListener(mf);
 
         } else if (element.type == Element.Type.VECTOR3F) {
-
+            l.setIcon(Theme.vec3);
             JFormattedTextField v1 = new JFormattedTextField(new DecimalFormat());
             this.add(v1);
             all.add(v1);
@@ -90,7 +90,6 @@ public class GGElement extends JPanel{
             JFormattedTextField v3 = new JFormattedTextField(new DecimalFormat());
             this.add(v3);
             all.add(v3);
-
             update(true);
 
             PropertyChangeListener mf = (e) -> {
