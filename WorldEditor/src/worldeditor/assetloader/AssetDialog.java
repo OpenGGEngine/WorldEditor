@@ -198,11 +198,10 @@ public class AssetDialog extends JDialog {
                 var resultfile = dialog.getSelectedFile();
                 if (resultfile == null) return;
                 var path = resultfile.getAbsolutePath();
-
                 Model model = AssimpModelLoader.loadModel(path);
                 ModelOptions mo = new ModelOptions(defaultop);
-                mo.name = new File(path).getName();
                 mo.model = model;
+                mo.name = model.getName();
                 models.add(mo);
                 list.addElement(mo.name);
             } catch (Exception ex) {
@@ -234,7 +233,7 @@ public class AssetDialog extends JDialog {
                     Path p = Paths.get(option.name);
                     String file = p.getFileName().toString();
 
-                    option.model.fileLocation = file;
+                    //option.model.fileLocation ;
                     new ModelTask(new BMFFile(),option.model,bar).run();
                     pdone++;
                     totalbar.setValue(pdone);
