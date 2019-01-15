@@ -1,4 +1,3 @@
-
 struct Material
 {
     float hasnormmap;
@@ -19,9 +18,7 @@ uniform sampler2D Ks;
 uniform sampler2D Ns;
 uniform sampler2D em;
 uniform sampler2D bump;
-uniform samplerCube cubemap;
 
-vec3 n;
 vec3 ambient;
 vec3 specular;
 vec3 diffuse;
@@ -30,6 +27,7 @@ vec4 color;
 float specpow;
 vec3 specpowvec;
 vec3 reflectedcolor;
+float trans;
 
 
 mat3 cotangent_frame( vec3 N, vec3 p, vec2 uv ){
@@ -64,7 +62,7 @@ void useMaterial(Material mat){
 
     trans = color.a;
 
-    ambient = 0.1 * diffuse;
+    ambient = 0.07f * diffuse;
 
     specular = getTex(Ks).xyz * mat.hasspec + mat.ks * (1-mat.hasspec);
 

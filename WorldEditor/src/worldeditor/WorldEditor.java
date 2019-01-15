@@ -15,8 +15,8 @@ import com.opengg.core.extension.ExtensionManager;
 import com.opengg.core.io.ControlType;
 import com.opengg.core.io.input.mouse.MouseController;
 import com.opengg.core.math.*;
-import com.opengg.core.model.ggmodel.GGModel;
-import com.opengg.core.model.ggmodel.io.BMFFile;
+import com.opengg.core.model.Model;
+import com.opengg.core.model.io.BMFFile;
 import com.opengg.core.render.*;
 import com.opengg.core.render.objects.ObjectCreator;
 import com.opengg.core.render.texture.Texture;
@@ -50,6 +50,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
+import java.time.Duration;
 import java.util.*;
 
 import static com.opengg.core.io.input.keyboard.Key.*;
@@ -57,26 +58,28 @@ import static java.util.Map.entry;
 
 
 public class WorldEditor extends GGApplication implements Actionable{
-    private static boolean cool = true;
     private static final Object initlock = new Object();
     private static JFrame window;
     private static JPanel mainpanel;
     private static JTree tree;
+
     private static GGView currentview;
     private static JPanel editarea;
     private static JPanel addregion;
     private static JPanel canvasregion;
-    private static boolean refresh;
     private static JPanel treearea;
+    private static JTextArea consoletext;
+
+    private static boolean refresh;
     private static Vector3fm control = new Vector3fm();
     private static Vector3fm controlrot = new Vector3fm();
     private static Camera cam;
+
     private static EditorTransmitter transmitter;
-    private static JTextArea consoletext;
     private static DefaultTreeModel treeModel;
     private static DefaultMutableTreeNode upperTreeNode;
-    private static int wwidth = 1920,wheight = 1080;
-    int i = 0;
+
+    private static Component currentComponent;
 
     public static void main(String[] args){
 
@@ -107,6 +110,7 @@ public class WorldEditor extends GGApplication implements Actionable{
 
     public static void initSwing() {
         try {
+            boolean cool = true;
             if(cool) {
                 Theme.applyTheme();
             }
@@ -115,8 +119,6 @@ public class WorldEditor extends GGApplication implements Actionable{
         }
         window = new JFrame();
         window.setMinimumSize(new Dimension(1920, 1080));
-        wwidth = window.getWidth();
-        wheight = window.getHeight();
         window.setIconImage(new ImageIcon("resources\\tex\\emak.png").getImage());
         window.setLayout(new BorderLayout());
         window.setTitle("World Editor");
@@ -137,6 +139,9 @@ public class WorldEditor extends GGApplication implements Actionable{
         var editMenu = new JMenu();
         editMenu.setText("Edit");
 
+        var gameMenu = new JMenu();
+        gameMenu.setText("Game");
+
         var worldMenu = new JMenu();
         worldMenu.setText("World");
 
@@ -150,6 +155,7 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         menuBar.add(fileMenu);
         menuBar.add(editMenu);
+        menuBar.add(gameMenu);
         menuBar.add(worldMenu);
         menuBar.add(objects);
         menuBar.add(assetLoader);
@@ -273,13 +279,13 @@ public class WorldEditor extends GGApplication implements Actionable{
     }
 
     private static void generateObjectMenu(JMenu menu) throws IOException {
-        Map<String,GGModel> objectlist = Map.ofEntries(
-          entry("Torus",BMFFile.loadModel("resources\\models\\defaults\\torus.bmf")),
-                entry("Sphere",BMFFile.loadModel("resources\\models\\defaults\\sphere.bmf")),
-                entry("HemiSphere",BMFFile.loadModel("resources\\models\\defaults\\hemi.bmf")),
-                entry("Plane",BMFFile.loadModel("resources\\models\\defaults\\plane.bmf"))
+        Map<String, Model> objectlist = Map.ofEntries(
+                entry("Torus", BMFFile.loadModel("resources\\models\\defaults\\torus.bmf")),
+                entry("Sphere", BMFFile.loadModel("resources\\models\\defaults\\sphere.bmf")),
+                entry("HemiSphere", BMFFile.loadModel("resources\\models\\defaults\\hemi.bmf")),
+                entry("Plane", BMFFile.loadModel("resources\\models\\defaults\\plane.bmf"))
         );
-        for(Map.Entry<String,GGModel> entry:objectlist.entrySet()){
+        for(Map.Entry<String,Model> entry:objectlist.entrySet()){
             JMenuItem item = new JMenuItem(entry.getKey());
             menu.add(item);
         }
@@ -347,11 +353,52 @@ public class WorldEditor extends GGApplication implements Actionable{
         refreshComponentList();
     }
 
+    private static void createComponentCreatorPanel(String name) {
+        var info = ViewModelComponentRegistry.getByClassname(name);
+        Class clazz = info.getComponent();
+        Class vmclazz = ViewModelComponentRegistry.findViewModel(clazz);
+        ViewModel viewmodel;
+
+        try {
+            viewmodel = (ViewModel) Objects.requireNonNull(vmclazz).getDeclaredConstructor().newInstance();
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+            GGConsole.error("Failed to create instance of a ViewModel for " + clazz.getName() + ", is there a default constructor?");
+            return;
+        }
+
+        var initializer = viewmodel.getInitializer(new Initializer());
+        if (initializer.elements.isEmpty()) {
+            createComponent(initializer, viewmodel);
+        } else {
+            NewComponentDialog ncs = new NewComponentDialog(initializer, viewmodel, getFrame());
+        }
+
+    }
+
+    public static void createComponent(Initializer vmi, ViewModel cvm){
+        OpenGG.asyncExec(() -> {
+            try {
+                var ncomp = cvm.getFromInitializer(vmi);
+                WorldEngine.getCurrent().attach(ncomp);
+                WorldEngine.getCurrent().rescanRenderables();
+                refreshComponentList();
+                ncomp.setPositionOffset(cam.getPosition());
+                tree.setSelectionPath(findById(ncomp.getId()));
+            }catch(Exception e){
+                GGConsole.error("Failed to initialize component: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+
+    }
+
     public static void useViewModel(ViewModel cvm){
         editarea.removeAll();
         GGView view = new GGView(cvm);
         editarea.add(view);
         editarea.validate();
+        currentComponent = cvm.component;
         currentview = view;
     }
 
@@ -362,7 +409,6 @@ public class WorldEditor extends GGApplication implements Actionable{
                 .map(reg -> reg.getComponent().getSimpleName())
                 .sorted()
                 .toArray(String[]::new);
-        System.out.println(Arrays.toString(strings));
         GridBagConstraints c = new GridBagConstraints();
         JList<String> classes = new JList<>(strings);
         classes.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
@@ -412,33 +458,6 @@ public class WorldEditor extends GGApplication implements Actionable{
         });
     }
 
-    private static void createComponentCreatorPanel(String name) {
-        var info = ViewModelComponentRegistry.getByClassname(name);
-        Class clazz = info.getComponent();
-        Class vmclazz = ViewModelComponentRegistry.findViewModel(clazz);
-        ViewModel viewmodel;
-
-        try {
-             viewmodel = (ViewModel) Objects.requireNonNull(vmclazz).getDeclaredConstructor().newInstance();
-        } catch (Exception ex) {
-            System.out.println(ex.getMessage());
-            GGConsole.error("Failed to create instance of a ViewModel for " + clazz.getName() + ", is there a default constructor?");
-            return;
-        }
-
-        var initializer = viewmodel.getInitializer(new Initializer());
-        if (initializer.elements.isEmpty()) {
-            createComponent(initializer, viewmodel);
-        } else {
-            NewComponentDialog ncs = new NewComponentDialog(initializer, viewmodel, getFrame());
-        }
-
-    }
-
-    public static void markForRefresh(){
-        refresh = true;
-    }
-
     public static void refreshComponentList(){
         var world = WorldEngine.getCurrent();
 
@@ -469,23 +488,6 @@ public class WorldEditor extends GGApplication implements Actionable{
         treeModel.insertNodeInto(child, parent, parent.getChildCount());
         tree.scrollPathToVisible(new TreePath(child.getPath()));
         return child;
-    }
-
-    public static void createComponent(Initializer vmi, ViewModel cvm){
-        OpenGG.asyncExec(() -> {
-            try {
-                var ncomp = cvm.getFromInitializer(vmi);
-                WorldEngine.getCurrent().attach(ncomp);
-                WorldEngine.getCurrent().rescanRenderables();
-                refreshComponentList();
-                ncomp.setPositionOffset(cam.getPosition());
-                tree.setSelectionPath(findById(ncomp.getId()));
-            }catch(Exception e){
-                GGConsole.error("Failed to initialize component: " + e.getMessage());
-                e.printStackTrace();
-            }
-        });
-
     }
 
     public static void setupTree(){
@@ -631,10 +633,6 @@ public class WorldEditor extends GGApplication implements Actionable{
         return null;
     }
 
-    public static void setView(GGView view){
-        currentview = view;
-    }
-
     public static JFrame getFrame(){
         return window;
     }
@@ -662,12 +660,11 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         cam = new Camera();
         RenderEngine.useView(cam);
-        cam.setPosition(new Vector3f(0, 0, -10));
 
         transmitter = new EditorTransmitter();
         transmitter.editor = this;
-
         BindController.addController(transmitter);
+
         WorldEngine.shouldUpdate(false);
         RenderEngine.setProjectionData(ProjectionData.getPerspective(100, 0.2f, 3000f));
 
@@ -675,28 +672,24 @@ public class WorldEditor extends GGApplication implements Actionable{
         RenderGroup group = new RenderGroup("renderer");
         group.add(cube);
 
+        var gray = Texture.ofColor(Color.GRAY);
+        var green = Texture.ofColor(Color.GREEN);
+        var blue = Texture.ofColor(Color.BLUE);
+
         RenderEngine.addRenderPath(new RenderOperation("editorrender", () -> {
             for(Component c : WorldEngine.getCurrent().getAll()){
                 if(c instanceof Renderable) continue;
                 cube.setMatrix(new Matrix4f().translate(c.getPosition()).rotate(c.getRotation()).scale(new Vector3f(0.4f)));
+                if(c == currentComponent){
+                    green.use(0);
+                }else if(currentComponent.getAllDescendants().contains(c)){
+                    blue.use(0);
+                }else{
+                    gray.use(0);
+                }
                 group.render();
             }
         }));
-        Runnable autosave = new Runnable(){
-            @Override
-            public void run(){
-                try{
-                    GGConsole.log("Autosaving world to autosave.bwf...");
-                    WorldEngine.saveWorld(WorldEngine.getCurrent(), "autosave.bwf");
-                    GGConsole.log("Autosave completed!");
-                    OpenGG.asyncExec(60 * 3, this);
-                }catch(Exception e){
-                    GGConsole.warn("Failed to autosave world!");
-                }
-            }
-        };
-
-        OpenGG.asyncExec(60 * 5, autosave);
 
         WorldEngine.getCurrent().getRenderEnvironment().setSkybox(new Skybox(Texture.getSRGBCubemap(Resource.getTexturePath("skybox\\majestic_ft.png"),
                 Resource.getTexturePath("skybox\\majestic_bk.png"),
@@ -704,6 +697,18 @@ public class WorldEditor extends GGApplication implements Actionable{
                 Resource.getTexturePath("skybox\\majestic_dn.png"),
                 Resource.getTexturePath("skybox\\majestic_rt.png"),
                 Resource.getTexturePath("skybox\\majestic_lf.png")), 1500f));
+
+        Executor.every(Duration.ofMinutes(5), () -> {
+            GGConsole.log("Autosaving world to autosave.bwf...");
+            WorldEngine.saveWorld(WorldEngine.getCurrent(), "autosave.bwf");
+            GGConsole.log("Autosave completed!");
+        });
+
+        Executor.every(Duration.ofMillis(100), () -> {
+            if (currentview != null && currentview.isComplete()) {
+                currentview.update();
+            }
+        });
 
         window.setVisible(true);
     }
@@ -715,23 +720,13 @@ public class WorldEditor extends GGApplication implements Actionable{
 
     @Override
     public void update(float delta){
-        i++;
-        if (i == 15) {
-            i = 0;
-            if (currentview != null && currentview.isComplete()) {
-                currentview.update();
-            }
-        }
-
         if (refresh) {
             refreshComponentList();
             refresh = false;
         }
-
-
         if(((GGCanvas)WindowController.getWindow()).hasFocus()){
             Vector2f mousepos = MouseController.get();
-            float mult = 0.5f;//Configuration.getFloat("sensitivity");
+            float mult = 0.5f;
             Vector3f currot = new Vector3f(mousepos.multiply(mult).y-180, mousepos.multiply(mult).x, 0);
             cam.setRotation(new Quaternionf(new Vector3f(currot.x, currot.y, currot.z)).invert());
 

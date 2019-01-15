@@ -7,9 +7,15 @@ in vertexData{
     vec3 norm;
 };
 
+vec3 n;
+
+uniform vec3 camera;
 uniform mat4 view;
 uniform mat4 model;
 uniform mat4 perspective;
+
+uniform samplerCube cubemap;
+
 
 vec4 getTex(sampler2D tname){
     return texture(tname, textureCoord);
