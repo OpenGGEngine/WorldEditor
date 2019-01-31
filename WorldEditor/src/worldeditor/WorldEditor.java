@@ -677,6 +677,7 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         RenderEngine.addRenderPath(new RenderOperation("editorrender", () -> {
             for(Component c : WorldEngine.getCurrent().getAll()){
+                if(currentComponent == null)break;
                 if(c instanceof Renderable) continue;
                 cube.setMatrix(new Matrix4f().translate(c.getPosition()).rotate(c.getRotation()).scale(new Vector3f(0.4f)));
                 if(c == currentComponent){
