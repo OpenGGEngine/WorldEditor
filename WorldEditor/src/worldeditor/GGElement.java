@@ -144,7 +144,9 @@ public class GGElement extends JPanel{
 
 
             JLabel fillspace = new JLabel();
-            this.add(fillspace, new GridBagConstraints(RELATIVE, 0, 3, 1, 0.5, 0.5, CENTER, BOTH, new Insets(5,5,5,5), 2, 2));
+            this.add(fillspace,
+                    new GridBagConstraints(RELATIVE, 0, 3, 1, 0.5, 0.5, CENTER, BOTH,
+                            new Insets(5,5,5,5), 2, 2));
         } else if (element.type == Element.Type.INTEGER) {
 
             JFormattedTextField v1 = new JFormattedTextField(NumberFormat.getIntegerInstance());
@@ -168,7 +170,7 @@ public class GGElement extends JPanel{
 
             update(true);
 
-            v1.addPropertyChangeListener((e) -> {
+            v1.addActionListener((e) -> {
                 element.value = v1.getText();
                 if (view != null && element.autoupdate) fireEvent(element);
             });

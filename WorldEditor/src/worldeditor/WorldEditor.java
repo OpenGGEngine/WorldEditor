@@ -5,7 +5,6 @@
  */
 package worldeditor;
 
-import com.opengg.core.Configuration;
 import com.opengg.core.GGInfo;
 import com.opengg.core.console.DefaultLoggerOutputConsumer;
 import com.opengg.core.console.GGConsole;
@@ -22,13 +21,13 @@ import com.opengg.core.render.objects.ObjectCreator;
 import com.opengg.core.render.texture.Texture;
 import com.opengg.core.render.window.WindowController;
 import com.opengg.core.render.window.WindowInfo;
-import com.opengg.core.world.*;
+import com.opengg.core.util.JarClassUtil;
 import com.opengg.core.world.Action;
+import com.opengg.core.world.*;
 import com.opengg.core.world.components.Component;
 import com.opengg.core.world.components.viewmodel.Initializer;
 import com.opengg.core.world.components.viewmodel.ViewModel;
 import com.opengg.core.world.components.viewmodel.ViewModelComponentRegistry;
-
 import com.opengg.ext.awt.AWTExtension;
 import com.opengg.ext.awt.window.GGCanvas;
 import worldeditor.assetloader.AssetDialog;
@@ -36,22 +35,19 @@ import worldeditor.assetloader.AssetDialog;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.EtchedBorder;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.plaf.metal.MetalLookAndFeel;
 import javax.swing.tree.*;
-
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.Map;
+import java.util.Objects;
 
 import static com.opengg.core.io.input.keyboard.Key.*;
 import static java.util.Map.entry;
@@ -81,11 +77,43 @@ public class WorldEditor extends GGApplication implements Actionable{
 
     private static Component currentComponent;
 
+    private static String runtimeJar;
+    private static GGApplication underlyingApp;
+
+
     public static void main(String[] args){
 
-        Thread ui = new Thread(() -> {
-            initSwing();
-        });
+        String initialDirectory = "";
+        if(args.length > 0 && !args[0].isEmpty() && new File(args[0]).exists()){
+            initialDirectory = args[0].trim();
+        }else{
+            var dialog = new JFileChooser(GGInfo.getApplicationPath());
+            dialog.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            dialog.setApproveButtonText("Load game from directory...");
+            dialog.showDialog(null, "Load game...");
+
+            initialDirectory = dialog.getSelectedFile().getAbsolutePath();
+        }
+
+        Resource.setDefaultPath(initialDirectory);
+
+        var localfiles = new File(initialDirectory).listFiles();
+
+        var libfolder = Arrays.stream(localfiles)
+                .filter(f -> f.getName().contains("lib"))
+                .findFirst().orElseThrow();
+
+        runtimeJar = Arrays.stream(libfolder.listFiles())
+                .map(File::getAbsolutePath)
+                .filter(s -> s.contains(".jar"))
+                .filter(s -> !s.contains("lwjgl"))
+                .filter(s -> JarClassUtil.loadAllClassesFromJar(s).stream()
+                        .map(Objects::requireNonNull)
+                        .anyMatch(GGApplication.class::isAssignableFrom))
+                .findAny().orElseThrow(() -> new RuntimeException("Failed to find any runnable OpenGG jarfile"));
+
+        Thread ui = new Thread(WorldEditor::initSwing);
+
         ui.setName("UI Thread");
         ui.start();
 
@@ -105,6 +133,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         w.resizable = false;
         w.type = "AWT";
         w.vsync = true;
+
         OpenGG.initialize(new WorldEditor(), w);
     }
 
@@ -160,14 +189,6 @@ public class WorldEditor extends GGApplication implements Actionable{
         menuBar.add(objects);
         menuBar.add(assetLoader);
 
-        var gamepath = new JMenuItem();
-        gamepath.setText("Set root game path");
-        gamepath.addActionListener((e) -> createGamePathChooser());
-
-        var jarload = new JMenuItem();
-        jarload.setText("Load game JAR");
-        jarload.addActionListener((e) -> createJarLoadChooser());
-
         var loadmap = new JMenuItem();
         loadmap.setText("Load world");
         loadmap.addActionListener((e) -> createWorldLoadChooser());
@@ -176,8 +197,6 @@ public class WorldEditor extends GGApplication implements Actionable{
         savemap.setText("Save world");
         savemap.addActionListener((e) -> createWorldSaveChooser());
 
-        fileMenu.add(gamepath);
-        fileMenu.add(jarload);
         fileMenu.add(loadmap);
         fileMenu.add(savemap);
 
@@ -301,7 +320,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         if (resultfile == null) return;
         var result = resultfile.getAbsolutePath();
 
-        OpenGG.asyncExec(() -> WorldEngine.saveWorld(WorldEngine.getCurrent(), result));
+        OpenGG.asyncExec(() -> WorldLoader.saveWorld(WorldEngine.getCurrent(), result));
         refreshComponentList();
     }
 
@@ -321,6 +340,7 @@ public class WorldEditor extends GGApplication implements Actionable{
 
     private static void createJarLoadChooser() {
         var dialog = new JFileChooser(GGInfo.getApplicationPath());
+        dialog.setCurrentDirectory(new File(GGInfo.getApplicationPath()));
         dialog.setFileFilter(new FileNameExtensionFilter("OpenGG application JAR","jar"));
         dialog.showDialog(null, "Load game JAR...");
 
@@ -345,7 +365,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         var result = resultfile.getAbsolutePath();
 
         OpenGG.syncExec(() -> {
-            WorldEngine.useWorld(WorldEngine.loadWorld(result));
+            WorldEngine.useWorld(WorldLoader.loadWorld(result));
             RenderEngine.useView(cam);
             BindController.addController(transmitter);
         });
@@ -640,30 +660,9 @@ public class WorldEditor extends GGApplication implements Actionable{
     @Override
     public void setup(){
         ViewModelComponentRegistry.initialize();
-        ViewModelComponentRegistry.createRegisters();
-        WorldEngine.getCurrent().setEnabled(false);
 
         refreshComponentList();
         updateAddRegion();
-
-        BindController.addBind(ControlType.KEYBOARD, "forward", KEY_W);
-        BindController.addBind(ControlType.KEYBOARD, "backward", KEY_S);
-        BindController.addBind(ControlType.KEYBOARD, "left", KEY_A);
-        BindController.addBind(ControlType.KEYBOARD, "right", KEY_D);
-        BindController.addBind(ControlType.KEYBOARD, "up", KEY_SPACE);
-        BindController.addBind(ControlType.KEYBOARD, "down", KEY_LEFT_SHIFT);
-        BindController.addBind(ControlType.KEYBOARD, "lookright", KEY_Q);
-        BindController.addBind(ControlType.KEYBOARD, "lookleft", KEY_E);
-        BindController.addBind(ControlType.KEYBOARD, "lookup", KEY_R);
-        BindController.addBind(ControlType.KEYBOARD, "lookdown", KEY_F);
-        BindController.addBind(ControlType.KEYBOARD, "clear", KEY_G);
-
-        cam = new Camera();
-        RenderEngine.useView(cam);
-
-        transmitter = new EditorTransmitter();
-        transmitter.editor = this;
-        BindController.addController(transmitter);
 
         WorldEngine.shouldUpdate(false);
         RenderEngine.setProjectionData(ProjectionData.getPerspective(100, 0.2f, 3000f));
@@ -691,16 +690,9 @@ public class WorldEditor extends GGApplication implements Actionable{
             }
         }));
 
-        WorldEngine.getCurrent().getRenderEnvironment().setSkybox(new Skybox(Texture.getSRGBCubemap(Resource.getTexturePath("skybox\\majestic_ft.png"),
-                Resource.getTexturePath("skybox\\majestic_bk.png"),
-                Resource.getTexturePath("skybox\\majestic_up.png"),
-                Resource.getTexturePath("skybox\\majestic_dn.png"),
-                Resource.getTexturePath("skybox\\majestic_rt.png"),
-                Resource.getTexturePath("skybox\\majestic_lf.png")), 1500f));
-
         Executor.every(Duration.ofMinutes(5), () -> {
             GGConsole.log("Autosaving world to autosave.bwf...");
-            WorldEngine.saveWorld(WorldEngine.getCurrent(), "autosave.bwf");
+            WorldLoader.saveWorld(WorldEngine.getCurrent(), "autosave.bwf");
             GGConsole.log("Autosave completed!");
         });
 
@@ -709,6 +701,65 @@ public class WorldEditor extends GGApplication implements Actionable{
                 currentview.update();
             }
         });
+
+        var classes = JarClassUtil.loadAllClassesFromJar(runtimeJar);
+
+        var runnableClass = classes.stream()
+                .map(Objects::requireNonNull)
+                .filter(GGApplication.class::isAssignableFrom)
+                .map(s -> ((Class<GGApplication>)s) ).findFirst().get();
+
+        GGConsole.log("Found runnable class in jarfile: " + runnableClass.getName());
+
+        try {
+            GGConsole.log("Instantiating class...");
+
+            underlyingApp = runnableClass.getDeclaredConstructor().newInstance();
+
+            var method = runnableClass.getDeclaredMethod("setup");
+
+            GGConsole.log("Initializing jarfile...");
+
+            method.invoke(underlyingApp);
+
+            ViewModelComponentRegistry.register(classes);
+            ViewModelComponentRegistry.createRegisters();
+            updateAddRegion();
+
+            GGConsole.log("Succesfully initialized jar");
+        } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
+
+        BindController.clearControllers();
+        BindController.clearBinds();
+        BindController.addBind(ControlType.KEYBOARD, "forward", KEY_W);
+        BindController.addBind(ControlType.KEYBOARD, "backward", KEY_S);
+        BindController.addBind(ControlType.KEYBOARD, "left", KEY_A);
+        BindController.addBind(ControlType.KEYBOARD, "right", KEY_D);
+        BindController.addBind(ControlType.KEYBOARD, "up", KEY_SPACE);
+        BindController.addBind(ControlType.KEYBOARD, "down", KEY_LEFT_SHIFT);
+        BindController.addBind(ControlType.KEYBOARD, "lookright", KEY_Q);
+        BindController.addBind(ControlType.KEYBOARD, "lookleft", KEY_E);
+        BindController.addBind(ControlType.KEYBOARD, "lookup", KEY_R);
+        BindController.addBind(ControlType.KEYBOARD, "lookdown", KEY_F);
+        BindController.addBind(ControlType.KEYBOARD, "clear", KEY_G);
+
+        cam = new Camera();
+        RenderEngine.useView(cam);
+
+        transmitter = new EditorTransmitter();
+        transmitter.editor = this;
+        BindController.addController(transmitter);
+
+        WorldEngine.useWorld(new World());
+
+        WorldEngine.getCurrent().getRenderEnvironment().setSkybox(new Skybox(Texture.getSRGBCubemap(Resource.getTexturePath("skybox\\majestic_ft.png"),
+                Resource.getTexturePath("skybox\\majestic_bk.png"),
+                Resource.getTexturePath("skybox\\majestic_up.png"),
+                Resource.getTexturePath("skybox\\majestic_dn.png"),
+                Resource.getTexturePath("skybox\\majestic_rt.png"),
+                Resource.getTexturePath("skybox\\majestic_lf.png")), 1500f));
 
         window.setVisible(true);
     }
