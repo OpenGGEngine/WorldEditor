@@ -77,13 +77,12 @@ public class WorldEditor extends GGApplication implements Actionable{
 
     private static Component currentComponent;
 
-    private static String runtimeJar;
+    private static String runtimeJar = "";
     private static GGApplication underlyingApp;
-
 
     public static void main(String[] args){
 
-        String initialDirectory = "";
+        String initialDirectory;
         if(args.length > 0 && !args[0].isEmpty() && new File(args[0]).exists()){
             initialDirectory = args[0].trim();
         }else{
@@ -92,25 +91,31 @@ public class WorldEditor extends GGApplication implements Actionable{
             dialog.setApproveButtonText("Load game from directory...");
             dialog.showDialog(null, "Load game...");
 
-            initialDirectory = dialog.getSelectedFile().getAbsolutePath();
+            if(dialog.getSelectedFile() != null)
+                initialDirectory = dialog.getSelectedFile().getAbsolutePath();
+            else
+                initialDirectory = "";
         }
 
-        Resource.setDefaultPath(initialDirectory);
+        if(!initialDirectory.isEmpty()){
+            Resource.setDefaultPath(initialDirectory);
 
-        var localfiles = new File(initialDirectory).listFiles();
+            var localfiles = new File(initialDirectory).listFiles();
 
-        var libfolder = Arrays.stream(localfiles)
-                .filter(f -> f.getName().contains("lib"))
-                .findFirst().orElseThrow();
+            var libfolder = Arrays.stream(localfiles)
+                    .filter(f -> f.getName().contains("lib"))
+                    .findFirst().orElseThrow();
 
-        runtimeJar = Arrays.stream(libfolder.listFiles())
-                .map(File::getAbsolutePath)
-                .filter(s -> s.contains(".jar"))
-                .filter(s -> !s.contains("lwjgl"))
-                .filter(s -> JarClassUtil.loadAllClassesFromJar(s).stream()
-                        .map(Objects::requireNonNull)
-                        .anyMatch(GGApplication.class::isAssignableFrom))
-                .findAny().orElseThrow(() -> new RuntimeException("Failed to find any runnable OpenGG jarfile"));
+            runtimeJar = Arrays.stream(libfolder.listFiles())
+                    .map(File::getAbsolutePath)
+                    .filter(s -> s.contains(".jar"))
+                    .filter(s -> !s.contains("lwjgl"))
+                    .filter(s -> JarClassUtil.getAllClassesFromJar(s).stream()
+                            .map(Objects::requireNonNull)
+                            .anyMatch(GGApplication.class::isAssignableFrom))
+                    .findAny().orElseThrow(() -> new RuntimeException("Failed to find any runnable OpenGG jarfile"));
+
+        }
 
         Thread ui = new Thread(WorldEditor::initSwing);
 
@@ -322,37 +327,6 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         OpenGG.asyncExec(() -> WorldLoader.saveWorld(WorldEngine.getCurrent(), result));
         refreshComponentList();
-    }
-
-    private static void createGamePathChooser() {
-        var dialog = new JFileChooser(GGInfo.getApplicationPath());
-        dialog.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-        dialog.showDialog(null, "Set game path...");
-
-        var resultfile = dialog.getSelectedFile();
-        if (resultfile == null) return;
-        var result = resultfile.getAbsolutePath();
-
-        Resource.setDefaultPath(result);
-        mainpanel.setName("World Editor: " + result);
-        GGConsole.log("Switched game path to " + result);
-    }
-
-    private static void createJarLoadChooser() {
-        var dialog = new JFileChooser(GGInfo.getApplicationPath());
-        dialog.setCurrentDirectory(new File(GGInfo.getApplicationPath()));
-        dialog.setFileFilter(new FileNameExtensionFilter("OpenGG application JAR","jar"));
-        dialog.showDialog(null, "Load game JAR...");
-
-        var resultfile = dialog.getSelectedFile();
-        if (resultfile == null) return;
-        var result = resultfile.getAbsolutePath();
-
-        ViewModelComponentRegistry.clearRegistry();
-        ViewModelComponentRegistry.createDefaultRegisters();
-        ViewModelComponentRegistry.registerAllFromJar(result);
-        ViewModelComponentRegistry.createRegisters();
-        updateAddRegion();
     }
 
     private static void createWorldLoadChooser() {
@@ -703,33 +677,39 @@ public class WorldEditor extends GGApplication implements Actionable{
             }
         });
 
-        var classes = JarClassUtil.loadAllClassesFromJar(runtimeJar);
+        if(!runtimeJar.isEmpty()){
 
-        var runnableClass = classes.stream()
-                .map(Objects::requireNonNull)
-                .filter(GGApplication.class::isAssignableFrom)
-                .map(s -> ((Class<GGApplication>)s) ).findFirst().get();
+            var classes = JarClassUtil.loadAllClassesFromJar(runtimeJar);
 
-        GGConsole.log("Found runnable class in jarfile: " + runnableClass.getName());
+            var runnableClass = classes.stream()
+                    .map(Objects::requireNonNull)
+                    .filter(GGApplication.class::isAssignableFrom)
+                    .map(s -> ((Class<GGApplication>)s) ).findFirst().get();
 
-        try {
-            GGConsole.log("Instantiating class...");
+            GGConsole.log("Found runnable class in jarfile: " + runnableClass.getName());
 
-            underlyingApp = runnableClass.getDeclaredConstructor().newInstance();
+            try {
+                GGConsole.log("Instantiating class...");
 
-            var method = runnableClass.getDeclaredMethod("setup");
+                underlyingApp = runnableClass.getDeclaredConstructor().newInstance();
 
-            GGConsole.log("Initializing jarfile...");
+                var method = runnableClass.getDeclaredMethod("setup");
 
-            method.invoke(underlyingApp);
+                GGConsole.log("Initializing jarfile...");
 
-            ViewModelComponentRegistry.register(classes);
+                method.invoke(underlyingApp);
+
+                ViewModelComponentRegistry.register(classes);
+                ViewModelComponentRegistry.createRegisters();
+                updateAddRegion();
+
+                GGConsole.log("Succesfully initialized jar");
+            } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
+                e.printStackTrace();
+            }
+        }else{
             ViewModelComponentRegistry.createRegisters();
             updateAddRegion();
-
-            GGConsole.log("Succesfully initialized jar");
-        } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
-            e.printStackTrace();
         }
 
         BindController.clearControllers();
