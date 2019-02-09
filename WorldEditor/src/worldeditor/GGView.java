@@ -23,7 +23,7 @@ public class GGView extends JPanel{
     private boolean complete;
     private List<GGElement> elements;
     
-    public GGView(ViewModel cvm){
+    public GGView(ViewModel<com.opengg.core.world.components.Component> cvm){
         this.cvm = cvm;
         this.doLayout();
         this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -50,7 +50,6 @@ public class GGView extends JPanel{
     }
     
     public void update(){
-        cvm.updateLocal();
         for(GGElement element : elements){
             element.update();
         }

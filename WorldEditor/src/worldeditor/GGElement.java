@@ -15,6 +15,8 @@ import com.opengg.core.world.components.viewmodel.Element;
 
 import java.awt.*;
 import java.awt.event.ItemEvent;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.beans.PropertyChangeListener;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
@@ -170,10 +172,17 @@ public class GGElement extends JPanel{
 
             update(true);
 
-            v1.addActionListener((e) -> {
+
+            v1.addKeyListener(new KeyAdapter() {
+                public void keyPressed(KeyEvent e) {
+                    element.value = v1.getText();
+                    if (view != null && element.autoupdate) fireEvent(element);
+                }
+            });
+            /*v1.addPropertyChangeListener((e) -> {
                 element.value = v1.getText();
                 if (view != null && element.autoupdate) fireEvent(element);
-            });
+            });*/
 
         } else if (element.type == Element.Type.BOOLEAN) {
 
@@ -289,7 +298,7 @@ public class GGElement extends JPanel{
     public void fireEvent(Element element){
         OpenGG.asyncExec(() -> {
             view.getViewModel().fireEvent(element);
-            view.getViewModel().updateLocal();
+            view.getViewModel().updateLocal(element);
         });
     }
 }

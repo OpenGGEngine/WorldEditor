@@ -11,7 +11,9 @@ import com.opengg.core.console.GGConsole;
 import com.opengg.core.console.Level;
 import com.opengg.core.engine.*;
 import com.opengg.core.extension.ExtensionManager;
+import com.opengg.core.gui.GUIController;
 import com.opengg.core.io.ControlType;
+import com.opengg.core.io.input.keyboard.KeyboardController;
 import com.opengg.core.io.input.mouse.MouseController;
 import com.opengg.core.math.*;
 import com.opengg.core.model.Model;
@@ -36,6 +38,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.EtchedBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.text.DefaultCaret;
 import javax.swing.tree.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
@@ -100,13 +103,9 @@ public class WorldEditor extends GGApplication implements Actionable{
         if(!initialDirectory.isEmpty()){
             Resource.setDefaultPath(initialDirectory);
 
-            var localfiles = new File(initialDirectory).listFiles();
-
-            var libfolder = Arrays.stream(localfiles)
+            runtimeJar = Arrays.stream(Objects.requireNonNull(new File(initialDirectory).listFiles()))
                     .filter(f -> f.getName().contains("lib"))
-                    .findFirst().orElseThrow();
-
-            runtimeJar = Arrays.stream(libfolder.listFiles())
+                    .flatMap(s -> Arrays.stream(s.listFiles()))
                     .map(File::getAbsolutePath)
                     .filter(s -> s.contains(".jar"))
                     .filter(s -> !s.contains("lwjgl"))
@@ -205,11 +204,8 @@ public class WorldEditor extends GGApplication implements Actionable{
         fileMenu.add(loadmap);
         fileMenu.add(savemap);
 
-        try {
-            generateObjectMenu(objects);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        OpenGG.asyncExec(() -> generateObjectMenu(objects));
+
 
         var gbc = new GridBagConstraints();
         gbc.weightx = 1;
@@ -279,6 +275,9 @@ public class WorldEditor extends GGApplication implements Actionable{
         consoletext = new JTextArea();
         consoletext.setEditable(false);
 
+        DefaultCaret caret = (DefaultCaret)consoletext.getCaret();
+        caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+
         console.setViewportView(consoletext);
 
         GGConsole.addOutputConsumer(new DefaultLoggerOutputConsumer(Level.DEBUG, s -> consoletext.append(s + "\n")));
@@ -302,12 +301,12 @@ public class WorldEditor extends GGApplication implements Actionable{
          }
     }
 
-    private static void generateObjectMenu(JMenu menu) throws IOException {
+    private static void generateObjectMenu(JMenu menu) {
         Map<String, Model> objectlist = Map.ofEntries(
-                entry("Torus", BMFFile.loadModel("resources\\models\\defaults\\torus.bmf")),
-                entry("Sphere", BMFFile.loadModel("resources\\models\\defaults\\sphere.bmf")),
-                entry("HemiSphere", BMFFile.loadModel("resources\\models\\defaults\\hemi.bmf")),
-                entry("Plane", BMFFile.loadModel("resources\\models\\defaults\\plane.bmf"))
+                entry("Torus", Resource.getModel("defaults\\torus.bmf")),
+                entry("Sphere", Resource.getModel("defaults\\sphere.bmf")),
+                entry("HemiSphere", Resource.getModel("defaults\\hemi.bmf")),
+                entry("Plane", Resource.getModel("defaults\\plane.bmf"))
         );
         for(Map.Entry<String,Model> entry:objectlist.entrySet()){
             JMenuItem item = new JMenuItem(entry.getKey());
@@ -367,7 +366,6 @@ public class WorldEditor extends GGApplication implements Actionable{
         } else {
             NewComponentDialog ncs = new NewComponentDialog(initializer, viewmodel, getFrame());
         }
-
     }
 
     public static void createComponent(Initializer vmi, ViewModel cvm){
@@ -607,7 +605,7 @@ public class WorldEditor extends GGApplication implements Actionable{
             try{
                 ViewModel cvm = (ViewModel) vmclass.getDeclaredConstructor().newInstance();
                 cvm.setComponent(component);
-                cvm.updateLocal();
+                cvm.updateAll();
                 useViewModel(cvm);
                 window.setVisible(true);
             }catch(InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException ex){
@@ -651,9 +649,9 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         RenderEngine.addRenderPath(new RenderOperation("editorrender", () -> {
             for(Component c : WorldEngine.getCurrent().getAll()){
-                if(currentComponent == null)break;
+                if(currentComponent == null) continue;
                 if(c instanceof Renderable) continue;
-                cube.setMatrix(new Matrix4f().translate(c.getPosition()).rotate(c.getRotation()).scale(new Vector3f(0.4f)));
+                cube.setMatrix(new Matrix4f().translate(c.getPosition()).rotate(c.getRotation()).scale(new Vector3f(0.1f)));
                 if(c == currentComponent){
                     green.use(0);
                 }else if(currentComponent.getAllDescendants().contains(c)){
@@ -678,24 +676,23 @@ public class WorldEditor extends GGApplication implements Actionable{
         });
 
         if(!runtimeJar.isEmpty()){
-
-            var classes = JarClassUtil.loadAllClassesFromJar(runtimeJar);
-
-            var runnableClass = classes.stream()
-                    .map(Objects::requireNonNull)
-                    .filter(GGApplication.class::isAssignableFrom)
-                    .map(s -> ((Class<GGApplication>)s) ).findFirst().get();
-
-            GGConsole.log("Found runnable class in jarfile: " + runnableClass.getName());
-
             try {
+                var classes = JarClassUtil.loadAllClassesFromJar(runtimeJar);
+
+                var runnableClass = classes.stream()
+                        .map(Objects::requireNonNull)
+                        .filter(GGApplication.class::isAssignableFrom)
+                        .map(s -> ((Class<GGApplication>)s) ).findFirst().get();
+
+                GGConsole.log("Found runnable class in jarfile: " + runnableClass.getName());
+
                 GGConsole.log("Instantiating class...");
 
                 underlyingApp = runnableClass.getDeclaredConstructor().newInstance();
 
                 var method = runnableClass.getDeclaredMethod("setup");
 
-                GGConsole.log("Initializing jarfile...");
+                GGConsole.log("Initializing game file...");
 
                 method.invoke(underlyingApp);
 
@@ -703,7 +700,7 @@ public class WorldEditor extends GGApplication implements Actionable{
                 ViewModelComponentRegistry.createRegisters();
                 updateAddRegion();
 
-                GGConsole.log("Succesfully initialized jar");
+                GGConsole.log("Succesfully initialized instance of " + underlyingApp.applicationName);
             } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
                 e.printStackTrace();
             }
@@ -711,6 +708,8 @@ public class WorldEditor extends GGApplication implements Actionable{
             ViewModelComponentRegistry.createRegisters();
             updateAddRegion();
         }
+
+        GUIController.setEnabled(false);
 
         BindController.clearControllers();
         BindController.clearBinds();
