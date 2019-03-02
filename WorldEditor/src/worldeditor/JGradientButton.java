@@ -17,7 +17,7 @@ public  final class JGradientButton extends JButton {
                 getBackground(),
                 new Point(0, 3*getHeight()/5),
                 getBackground().darker()));
-        g2.fillRoundRect(0, 0, getWidth(), getHeight(),4,4);
+        g2.fillRoundRect(0, 0, getWidth(), getHeight(),3,3);
         g2.dispose();
 
         super.paintComponent(g);

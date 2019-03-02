@@ -6,7 +6,7 @@ import javax.swing.plaf.metal.MetalLookAndFeel;
 import java.awt.*;
 
 public class Theme {
-    public static Color mainBG = Color.decode("#212121");
+    public static Color mainBG = Color.decode("#262626");
     public static Color text = Color.decode("#EEEEEE");
     public static Color scrollBG = Color.decode("#666666");
     public static Color buttonBG = Color.decode("#424242");
@@ -25,6 +25,11 @@ public class Theme {
 
     public static void applyTheme() throws UnsupportedLookAndFeelException {
         UIManager.setLookAndFeel(new MetalLookAndFeel());
+        UIManager.put("Separator.insets",new Insets(10,10,10,10));
+        UIManager.put("CheckBox.background",Theme.mainBG);
+        UIManager.put("CheckBox.foreground",Theme.text);
+        UIManager.put("CheckBox.focus",Theme.mainBG);
+        UIManager.put("CheckBox.textIconGap",5);
         UIManager.put("List.background", Theme.mainBG);
         UIManager.put("List.foreground", Theme.text);
         UIManager.put("List.font", Theme.toolbarFont);

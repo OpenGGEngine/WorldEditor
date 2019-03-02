@@ -11,6 +11,7 @@ import com.opengg.core.math.Tuple;
 import com.opengg.core.model.Model;
 import com.opengg.core.model.io.AssimpModelLoader;
 import com.opengg.core.model.io.BMFFile;
+import com.opengg.core.model.process.ConvexHullUtil;
 import com.opengg.core.model.process.GGTootle;
 import com.opengg.core.model.process.ModelProcess;
 import worldeditor.JGradientButton;
@@ -45,7 +46,8 @@ public class AssetDialog extends JDialog {
         JProgressBar bar;
         ModelTask(ModelProcess p, Model m, JProgressBar bar){
             this.p = p;
-            this.p.run = ()->publish(new Tuple<>(p.numcompleted,p.totaltasks));
+            this.p.run = ()->{publish(new Tuple<>(p.numcompleted,p.totaltasks));
+                System.out.println("publish");};
             this.m = m;
             this.bar = bar;
         }
@@ -58,6 +60,7 @@ public class AssetDialog extends JDialog {
 
         @Override
         protected void process(List<Tuple<Integer, Integer>> chunks) {
+            System.out.println("recieved");
             for(Tuple<Integer,Integer> chunk: chunks){
                 bar.setValue(chunk.x);
                 bar.setMaximum(chunk.y);
@@ -69,7 +72,7 @@ public class AssetDialog extends JDialog {
         super(parent, "Convert Model");
 
         setModalExclusionType(Dialog.ModalExclusionType.APPLICATION_EXCLUDE);
-        this.setSize(600, 450);
+        this.setSize(800, 550);
 
         JPanel main = new JPanel();
         main.setLayout(new BorderLayout());
@@ -96,12 +99,15 @@ public class AssetDialog extends JDialog {
         JPanel assimpconf = new JPanel();
         assimpconf.setLayout(new BoxLayout(assimpconf,BoxLayout.PAGE_AXIS));
         assimpconf.add(new JLabel("<html><h3>Assimp Config</h3></html>"));
+        assimpconf.add(new JSeparator());
         assimpconf.add(new JCheckBox("Optimize Meshes"));
         assimpconf.add(new JCheckBox("Optimize Graph"));
 
         JPanel exportconf = new JPanel();
         exportconf.setLayout(new BoxLayout(exportconf,BoxLayout.PAGE_AXIS));
-        exportconf.add(new JLabel("<html><h3>Processing Config</h3></html>"));
+        JLabel configtitle = new JLabel("<html><h3>Default Processing Config</h3></html>");
+        exportconf.add(configtitle);
+        exportconf.add(new JSeparator());
         JCheckBox[] boxes = new JCheckBox[]{
                 new JCheckBox("Generate Convex Hull"),
                 new JCheckBox("Tootle"),
@@ -122,9 +128,9 @@ public class AssetDialog extends JDialog {
         totalbar.setString("Total Progress:");
         totalbar.setStringPainted(true);
 
-        JButton defaults = new JGradientButton("Default Config");
-        JButton assimpconfig = new JGradientButton("Assimp Import Config");
-        JButton process = new JGradientButton("Process");
+        JButton defaults = new JGradientButton("Default Model");
+        JButton assimpconfig = new JGradientButton("Assimp Loader");
+        JButton process = new JGradientButton("Process Models");
 
         JLabel processCount = new JLabel("On: 0/0");
 
@@ -141,37 +147,43 @@ public class AssetDialog extends JDialog {
             currentop = models.get(e.getFirstIndex());
             assimpconf.setVisible(false);
             exportconf.setVisible(true);
+            configtitle.setText("<html><h3>" + currentop.model.getName() + "'s Processing Config</h3></html>");
             updateExportConf(currentop,boxes);
         });
         top.add(label);
-        left.add(defaults);
-        left.add(Box.createVerticalStrut(5));
-        left.add(assimpconfig);
-        left.add(Box.createVerticalStrut(5));
-        left.add(button);
-        left.add(Box.createVerticalStrut(5));
+        Box temp2 = Box.createHorizontalBox();
+        temp2.add(new JLabel("<html><h4>Configs</h4></html>"));
+        temp2.add(Box.createRigidArea(new Dimension(20,0)));
+        temp2.add(defaults);
+        temp2.add(Box.createRigidArea(new Dimension(6,0)));
+        temp2.add(assimpconfig);
+        left.add(temp2);
+
+        Box temp = Box.createHorizontalBox();
+        temp.add(new JLabel("<html><h4>Model List</h4></html>"));
+        temp.add(button);
+        left.add(temp);
+        left.add(Box.createVerticalStrut(10));
         left.add(scroll);
 
         main.add(top,BorderLayout.PAGE_START);
         main.add(left,BorderLayout.LINE_START);
         main.add(right,BorderLayout.LINE_END);
         main.add(center,BorderLayout.CENTER);
+        main.add(bottom, BorderLayout.PAGE_END);
+
         center.add(assimpconf);
-        exportconf.setVisible(false);
+        exportconf.setVisible(true);
         assimpconf.setVisible(false);
         center.add(exportconf);
 
-
         right.add(process);
-        right.add(Box.createVerticalStrut(10));
+        right.add(Box.createVerticalStrut(1));
         right.add(processCount);
         right.add(Box.createVerticalStrut(10));
         right.add(totalbar);
         right.add(Box.createVerticalStrut(10));
         right.add(bar);
-
-
-        main.add(bottom, BorderLayout.PAGE_END);
 
         defaults.addActionListener(e->{
             updateOptions(currentop,boxes);
@@ -180,6 +192,7 @@ public class AssetDialog extends JDialog {
             assimpconf.setVisible(false);
             currentop = defaultop;
             updateExportConf(currentop,boxes);
+            configtitle.setText("<html><h3>Default Processing Config</h3></html>");
         });
         assimpconfig.addActionListener(e->{
             updateOptions(currentop,boxes);
@@ -212,42 +225,50 @@ public class AssetDialog extends JDialog {
         button.setFont(Font.getFont("Verdana"));
         button.setIcon(UIManager.getIcon("FileChooser.upFolderIcon"));
         process.addActionListener(e->{
-            process.setEnabled(false);
-            updateOptions(currentop,boxes);
-            isprocessing = true;
-            for(JCheckBox box:boxes) box.setEnabled(false);
-            int nummodels = 1;
-            for(ModelOptions option:models){
-                int numprocesses = bool(option.tootle)
-                        + bool(option.convexhull) +
-                        bool(option.lod) + bool(option.bmf);
-                totalbar.setMaximum(numprocesses);
-                int pdone = 0;
-                if(option.tootle){
-                    new ModelTask(new GGTootle(),option.model,bar).run();
-                    pdone++;
-                    totalbar.setValue(pdone);
-                    totalbar.setString(pdone+"/"+numprocesses);
+            if(models.size()>0) {
+                process.setEnabled(false);
+                updateOptions(currentop, boxes);
+                isprocessing = true;
+                for (JCheckBox box : boxes) box.setEnabled(false);
+                int nummodels = 1;
+                for (ModelOptions option : models) {
+                    int numprocesses = bool(option.tootle)
+                            + bool(option.convexhull) +
+                            bool(option.lod) + bool(option.bmf);
+                    totalbar.setMaximum(numprocesses);
+                    int pdone = 0;
+                    if (option.tootle) {
+                        new ModelTask(new GGTootle(), option.model, bar).run();
+                        pdone++;
+                        totalbar.setValue(pdone);
+                        totalbar.setString(pdone + "/" + numprocesses);
+                    }
+                    if (option.convexhull) {
+                        new ModelTask(new ConvexHullUtil(), option.model, bar).run();
+                        pdone++;
+                        option.model.exportConfig |= BMFFile.CONVEXHULL;
+                        totalbar.setValue(pdone);
+                        totalbar.setString(pdone + "/" + numprocesses);
+                    }
+                    if (option.bmf) {
+                        Path p = Paths.get(option.name);
+                        new ModelTask(new BMFFile(), option.model, bar).run();
+                        pdone++;
+                        totalbar.setValue(pdone);
+                        totalbar.setString(pdone + "/" + numprocesses);
+                    }
+                    processCount.setText("On " + nummodels + "/" + models.size() + ":" + option.model.fileLocation);
+                    nummodels++;
                 }
-                if(option.bmf){
-                    Path p = Paths.get(option.name);
-                    String file = p.getFileName().toString();
-
-                    //option.model.fileLocation ;
-                    new ModelTask(new BMFFile(),option.model,bar).run();
-                    pdone++;
-                    totalbar.setValue(pdone);
-                    totalbar.setString(pdone+"/"+numprocesses);
+                processCount.setText("Finished");
+                for (JCheckBox box : boxes) {
+                    box.setEnabled(true);
                 }
-                processCount.setText("On "+ nummodels+"/"+models.size() + ":"+option.model.fileLocation);
-                nummodels++;
+                isprocessing = false;
+                process.setEnabled(true);
+            }else{
+                processCount.setText("No models loaded.");
             }
-            processCount.setText("Finished");
-            for(JCheckBox box:boxes){
-                box.setEnabled(true);
-            }
-            isprocessing = false;
-            process.setEnabled(true);
         });
 
 
