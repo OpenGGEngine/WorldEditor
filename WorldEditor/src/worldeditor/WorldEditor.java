@@ -193,6 +193,10 @@ public class WorldEditor extends GGApplication implements Actionable{
         menuBar.add(objects);
         menuBar.add(assetLoader);
 
+        var newWorld = new JMenuItem();
+        newWorld.setText("Create new world");
+        newWorld.addActionListener((e) -> createWorld());
+
         var loadmap = new JMenuItem();
         loadmap.setText("Load world");
         loadmap.addActionListener((e) -> createWorldLoadChooser());
@@ -201,8 +205,21 @@ public class WorldEditor extends GGApplication implements Actionable{
         savemap.setText("Save world");
         savemap.addActionListener((e) -> createWorldSaveChooser());
 
+        var quit = new JMenuItem();
+        quit.setText("Quit");
+        quit.addActionListener((e) -> System.exit(0));
+
+        var reload = new JMenuItem();
+        reload.setText("Restart/Reload jar");
+        reload.addActionListener((e) -> restart());
+
+        fileMenu.add(newWorld);
         fileMenu.add(loadmap);
         fileMenu.add(savemap);
+        fileMenu.addSeparator();
+        fileMenu.add(quit);
+        fileMenu.add(reload);
+
 
         OpenGG.asyncExec(() -> generateObjectMenu(objects));
 
@@ -315,6 +332,13 @@ public class WorldEditor extends GGApplication implements Actionable{
 
     }
 
+    private static void createWorld(){
+        World world = new World();
+        world.setEnabled(false);
+
+        WorldEngine.useWorld(world);
+    }
+
     private static void createWorldSaveChooser() {
         var dialog = new JFileChooser(GGInfo.getApplicationPath());
         dialog.showSaveDialog(null);
@@ -326,6 +350,10 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         OpenGG.asyncExec(() -> WorldLoader.saveWorld(WorldEngine.getCurrent(), result));
         refreshComponentList();
+    }
+
+    private static void restart(){
+
     }
 
     private static void createWorldLoadChooser() {
@@ -632,6 +660,7 @@ public class WorldEditor extends GGApplication implements Actionable{
     @Override
     public void setup(){
         ViewModelComponentRegistry.initialize();
+        GGDebugRenderer.setEnabled(true);
 
         refreshComponentList();
         updateAddRegion();
@@ -648,7 +677,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         var blue = Texture.ofColor(Color.BLUE);
 
         RenderEngine.addRenderPath(new RenderOperation("editorrender", () -> {
-            for(Component c : WorldEngine.getCurrent().getAll()){
+            for(Component c : WorldEngine.getCurrent().getAllDescendants()){
                 if(currentComponent == null) continue;
                 if(c instanceof Renderable) continue;
                 cube.setMatrix(new Matrix4f().translate(c.getPosition()).rotate(c.getRotation()).scale(new Vector3f(0.1f)));
@@ -709,6 +738,8 @@ public class WorldEditor extends GGApplication implements Actionable{
             updateAddRegion();
         }
 
+        createWorld();
+
         GUIController.setEnabled(false);
 
         BindController.clearControllers();
@@ -731,8 +762,6 @@ public class WorldEditor extends GGApplication implements Actionable{
         transmitter = new EditorTransmitter();
         transmitter.editor = this;
         BindController.addController(transmitter);
-
-        WorldEngine.useWorld(new World());
 
         WorldEngine.getCurrent().getRenderEnvironment().setSkybox(new Skybox(Texture.getSRGBCubemap(Resource.getTexturePath("skybox\\majestic_ft.png"),
                 Resource.getTexturePath("skybox\\majestic_bk.png"),
