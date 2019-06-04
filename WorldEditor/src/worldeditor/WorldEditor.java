@@ -17,6 +17,7 @@ import com.opengg.core.io.input.keyboard.KeyboardController;
 import com.opengg.core.io.input.mouse.MouseController;
 import com.opengg.core.math.*;
 import com.opengg.core.model.Model;
+import com.opengg.core.model.io.AssimpModelLoader;
 import com.opengg.core.model.io.BMFFile;
 import com.opengg.core.render.*;
 import com.opengg.core.render.objects.ObjectCreator;
@@ -33,6 +34,8 @@ import com.opengg.core.world.components.viewmodel.ViewModelComponentRegistry;
 import com.opengg.ext.awt.AWTExtension;
 import com.opengg.ext.awt.window.GGCanvas;
 import worldeditor.assetloader.AssetDialog;
+import worldeditor.guieditor.GUIEditor;
+import worldeditor.scripteditor.ScriptEditor;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -84,7 +87,13 @@ public class WorldEditor extends GGApplication implements Actionable{
     private static GGApplication underlyingApp;
 
     public static void main(String[] args){
-
+        //try {
+            //ModelEditorWindow win = new ModelEditorWindow(AssimpModelLoader.loadModel("C:\\Users\\warre\\Desktop\\Models\\Wii U - Mario Kart 8 - 3DS Music Park\\3DS Music Park.obj"));
+            ///win.setEnabled(true);
+            //win.show();
+        ///} catch (IOException e) {
+           // e.printStackTrace();
+        //}
         String initialDirectory;
         if(args.length > 0 && !args[0].isEmpty() && new File(args[0]).exists()){
             initialDirectory = args[0].trim();
@@ -138,7 +147,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         w.type = "AWT";
         w.vsync = true;
 
-        OpenGG.initialize(new WorldEditor(), w);
+        //OpenGG.initialize(new WorldEditor(), new InitializationOptions().setWindowInfo(w));
     }
 
     public static void initSwing() {
@@ -185,6 +194,10 @@ public class WorldEditor extends GGApplication implements Actionable{
         assetLoader.setText("Asset Loader");
         assetLoader.addActionListener((e) -> new AssetDialog(getFrame()));
 
+        var scriptEditor = new JMenuItem();
+        scriptEditor.setText("Script Editor");
+        scriptEditor.addActionListener((e) -> new ScriptEditor("New Script","").show());
+
 
         menuBar.add(fileMenu);
         menuBar.add(editMenu);
@@ -192,6 +205,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         menuBar.add(worldMenu);
         menuBar.add(objects);
         menuBar.add(assetLoader);
+        menuBar.add(scriptEditor);
 
         var newWorld = new JMenuItem();
         newWorld.setText("Create new world");
