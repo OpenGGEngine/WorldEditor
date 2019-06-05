@@ -9,6 +9,7 @@ public class Theme {
     public static Color mainBG = Color.decode("#262626");
     public static Color text = Color.decode("#EEEEEE");
     public static Color scrollBG = Color.decode("#666666");
+    public static Color textArea = Color.decode("#323232");
     public static Color buttonBG = Color.decode("#424242");
     public static Color progressBarBG = Color.decode("#4caf50");
     public static Color toggleFalse = Color.decode("#F0513F");
@@ -37,10 +38,14 @@ public class Theme {
         UIManager.put("Panel.background", Theme.mainBG);
         UIManager.put("Label.foreground", Theme.text);
         UIManager.put("Label.font",consoleFont);
-        UIManager.put("TextArea.background", Theme.mainBG);
+        UIManager.put("TextArea.background", Theme.textArea);
         UIManager.put("TextArea.foreground", Theme.text);
         UIManager.put("TextArea.font", Theme.consoleFont);
         UIManager.put("TextArea.border", Theme.defNone);
+        UIManager.put("TextPane.background",Theme.textArea);
+        UIManager.put("TextPane.foreground",Theme.text);
+        UIManager.put("TextPane.font",Theme.consoleFont);
+        UIManager.put("TextPane.caretForeground", Theme.text);
         UIManager.put("TextField.background", Theme.buttonBG);
         UIManager.put("TextField.foreground", Theme.text);
         UIManager.put("TextField.font", Theme.consoleFont);
