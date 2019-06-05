@@ -16,5 +16,4 @@ module WorldEditor {
     requires org.lwjgl.opengl;
     requires org.lwjgl.jawt;
     requires com.opengg.base;
-    requires javafx.base;
 }

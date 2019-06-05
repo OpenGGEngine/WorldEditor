@@ -7,6 +7,7 @@ package assetloader2;
 
 import com.opengg.core.math.Matrix4f;
 import com.opengg.core.math.Quaternionf;
+import com.opengg.core.math.Tuple;
 import com.opengg.core.math.Vector3f;
 
 import java.io.IOException;
@@ -18,7 +19,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import javafx.util.Pair;
 import org.lwjgl.assimp.*;
 import org.lwjgl.system.MemoryUtil;
 
@@ -30,9 +30,9 @@ public class MNode {
     public static Map<String, MNode> nodeset = new HashMap<>();
     public Matrix4f transform;
 
-    public Pair<Double, Vector3f>[] positionkeys;
-    public Pair<Double, Quaternionf>[] rotationkeys;
-    public Pair<Double, Vector3f>[] scalingkeys;
+    public Tuple<Double, Vector3f>[] positionkeys;
+    public Tuple<Double, Quaternionf>[] rotationkeys;
+    public Tuple<Double, Vector3f>[] scalingkeys;
     public String name;
 
     public MNode parent;
@@ -47,24 +47,24 @@ public class MNode {
 
         if (sd != null) {
             System.out.println(name);
-            positionkeys = new Pair[sd.mNumPositionKeys()];
+            positionkeys = new Tuple[sd.mNumPositionKeys()];
             for (int i = 0; i < sd.mNumPositionKeys(); i++) {
                 AIVector3D temp = sd.mPositionKeys().get(i).mValue();
                 double time = sd.mPositionKeys().get(i).mTime();
-                positionkeys[i] = new Pair<Double, Vector3f>(time, new Vector3f(temp.x(), temp.y(), temp.z()));
+                positionkeys[i] = new Tuple<Double, Vector3f>(time, new Vector3f(temp.x(), temp.y(), temp.z()));
             }
-            rotationkeys = new Pair[sd.mNumRotationKeys()];
+            rotationkeys = new Tuple[sd.mNumRotationKeys()];
             for (int i = 0; i < sd.mNumRotationKeys(); i++) {
                 AIQuaternion temp = sd.mRotationKeys().get(i).mValue();
                 System.out.println(AIMatrix4x4.create());
                 double time = sd.mRotationKeys().get(i).mTime();
-                rotationkeys[i] = new Pair<Double, Quaternionf>(time, new Quaternionf(temp.w(), temp.x(), temp.y(), temp.z()));
+                rotationkeys[i] = new Tuple<Double, Quaternionf>(time, new Quaternionf(temp.w(), temp.x(), temp.y(), temp.z()));
             }
-            scalingkeys = new Pair[sd.mNumScalingKeys()];
+            scalingkeys = new Tuple[sd.mNumScalingKeys()];
             for (int i = 0; i < sd.mNumScalingKeys(); i++) {
                 AIVector3D temp = sd.mScalingKeys().get(i).mValue();
                 double time = sd.mScalingKeys().get(i).mTime();
-                scalingkeys[i] = new Pair<Double, Vector3f>(time, new Vector3f(temp.x(), temp.y(), temp.z()));
+                scalingkeys[i] = new Tuple<Double, Vector3f>(time, new Vector3f(temp.x(), temp.y(), temp.z()));
             }
         }
         this.transform = ModelLoader12.toMatrix(m.mTransformation());
@@ -79,8 +79,8 @@ public class MNode {
             f.write(MemoryUtil.memAlloc(4).putInt(positionkeys.length).flip());
             ByteBuffer sd = MemoryUtil.memAlloc(positionkeys.length * (3 * Float.BYTES + Double.BYTES));
             for (int i = 0; i < positionkeys.length; i++) {
-                Vector3f index = positionkeys[i].getValue();
-                sd.putDouble(positionkeys[i].getKey());
+                Vector3f index = positionkeys[i].y;
+                sd.putDouble(positionkeys[i].x);
                 sd.putFloat(index.x).putFloat(index.y).putFloat(index.z);
             }
             sd.flip();
@@ -94,8 +94,8 @@ public class MNode {
             ByteBuffer sd1 = MemoryUtil.memAlloc(rotationkeys.length * (4 * Float.BYTES + Double.BYTES));
             f.write(MemoryUtil.memAlloc(4).putInt(rotationkeys.length).flip());
             for (int i = 0; i < rotationkeys.length; i++) {
-                Quaternionf index = rotationkeys[i].getValue();
-                sd1.putDouble(rotationkeys[i].getKey());
+                Quaternionf index = rotationkeys[i].y;
+                sd1.putDouble(rotationkeys[i].x);
                 //Ethan approves.
                 sd1.putFloat(index.w).putFloat(index.x).putFloat(index.y).putFloat(index.z);
             }
@@ -111,8 +111,8 @@ public class MNode {
             ByteBuffer sd2 = MemoryUtil.memAlloc(scalingkeys.length * (3 * Float.BYTES + Double.BYTES));
             f.write(MemoryUtil.memAlloc(4).putInt(scalingkeys.length).flip());
             for (int i = 0; i < scalingkeys.length; i++) {
-                Vector3f index = scalingkeys[i].getValue();
-                sd2.putDouble(scalingkeys[i].getKey());
+                Vector3f index = scalingkeys[i].y;
+                sd2.putDouble(scalingkeys[i].x);
                 sd2.putFloat(index.x).putFloat(index.y).putFloat(index.z);
 
             }

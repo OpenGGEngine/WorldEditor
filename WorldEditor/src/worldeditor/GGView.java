@@ -38,7 +38,7 @@ public class GGView extends JPanel{
         remove.setIcon(Theme.trash);
 
         remove.addActionListener(e -> {
-            WorldEngine.markForRemoval(cvm.getComponent());
+            WorldEngine.markComponentForRemoval(cvm.getComponent());
             WorldEngine.removeMarked();
             WorldEditor.refreshComponentList();
             });

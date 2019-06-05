@@ -246,7 +246,7 @@ public class AssetDialog extends JDialog {
                     if (option.convexhull) {
                         new ModelTask(new ConvexHullUtil(), option.model, bar).run();
                         pdone++;
-                        option.model.exportConfig |= BMFFile.CONVEXHULL;
+                        option.model.setExportConfig(option.model.getExportConfig() | BMFFile.CONVEXHULL);
                         totalbar.setValue(pdone);
                         totalbar.setString(pdone + "/" + numprocesses);
                     }
@@ -257,7 +257,7 @@ public class AssetDialog extends JDialog {
                         totalbar.setValue(pdone);
                         totalbar.setString(pdone + "/" + numprocesses);
                     }
-                    processCount.setText("On " + nummodels + "/" + models.size() + ":" + option.model.fileLocation);
+                    processCount.setText("On " + nummodels + "/" + models.size() + ":" + option.model.getFileLocation());
                     nummodels++;
                 }
                 processCount.setText("Finished");

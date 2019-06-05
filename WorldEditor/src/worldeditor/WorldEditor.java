@@ -13,19 +13,21 @@ import com.opengg.core.engine.*;
 import com.opengg.core.extension.ExtensionManager;
 import com.opengg.core.gui.GUIController;
 import com.opengg.core.io.ControlType;
-import com.opengg.core.io.input.keyboard.KeyboardController;
 import com.opengg.core.io.input.mouse.MouseController;
 import com.opengg.core.math.*;
 import com.opengg.core.model.Model;
-import com.opengg.core.model.io.BMFFile;
 import com.opengg.core.render.*;
 import com.opengg.core.render.objects.ObjectCreator;
 import com.opengg.core.render.texture.Texture;
 import com.opengg.core.render.window.WindowController;
 import com.opengg.core.render.window.WindowInfo;
+import com.opengg.core.script.Script;
+import com.opengg.core.script.ScriptCompiler;
+import com.opengg.core.script.ScriptLoader;
 import com.opengg.core.util.JarClassUtil;
 import com.opengg.core.world.Action;
 import com.opengg.core.world.*;
+import com.opengg.core.world.components.CameraComponent;
 import com.opengg.core.world.components.Component;
 import com.opengg.core.world.components.viewmodel.Initializer;
 import com.opengg.core.world.components.viewmodel.ViewModel;
@@ -46,6 +48,7 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -107,9 +110,13 @@ public class WorldEditor extends GGApplication implements Actionable{
                     .filter(f -> f.getName().contains("lib"))
                     .flatMap(s -> Arrays.stream(s.listFiles()))
                     .map(File::getAbsolutePath)
+                    .peek(System.out::println)
                     .filter(s -> s.contains(".jar"))
                     .filter(s -> !s.contains("lwjgl"))
-                    .filter(s -> JarClassUtil.getAllClassesFromJar(s).stream()
+                    .filter(s -> !s.contains("steamworks"))
+                    .peek(System.out::println)
+                    .filter(s -> JarClassUtil.loadAllClassesFromJar(s).stream()
+                            .peek(System.out::println)
                             .map(Objects::requireNonNull)
                             .anyMatch(GGApplication.class::isAssignableFrom))
                     .findAny().orElseThrow(() -> new RuntimeException("Failed to find any runnable OpenGG jarfile"));
@@ -138,7 +145,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         w.type = "AWT";
         w.vsync = true;
 
-        OpenGG.initialize(new WorldEditor(), w);
+        OpenGG.initialize(new WorldEditor(), new InitializationOptions().setWindowInfo(w));
     }
 
     public static void initSwing() {
@@ -336,7 +343,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         World world = new World();
         world.setEnabled(false);
 
-        WorldEngine.useWorld(world);
+        WorldEngine.setOnlyActiveWorld(world);
     }
 
     private static void createWorldSaveChooser() {
@@ -348,7 +355,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         if (resultfile == null) return;
         var result = resultfile.getAbsolutePath();
 
-        OpenGG.asyncExec(() -> WorldLoader.saveWorld(WorldEngine.getCurrent(), result));
+        OpenGG.asyncExec(() -> WorldLoader.saveWorldFile(WorldEngine.getCurrent(), result));
         refreshComponentList();
     }
 
@@ -366,7 +373,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         var result = resultfile.getAbsolutePath();
 
         OpenGG.syncExec(() -> {
-            WorldEngine.useWorld(WorldLoader.loadWorld(result));
+            WorldEngine.setOnlyActiveWorld(WorldLoader.loadWorld(result));
             RenderEngine.useView(cam);
             BindController.addController(transmitter);
         });
@@ -404,7 +411,7 @@ public class WorldEditor extends GGApplication implements Actionable{
                 WorldEngine.getCurrent().rescanRenderables();
                 refreshComponentList();
                 ncomp.setPositionOffset(cam.getPosition());
-                tree.setSelectionPath(findById(ncomp.getId()));
+                tree.setSelectionPath(findByGUID(ncomp.getGUID()));
             }catch(Exception e){
                 GGConsole.error("Failed to initialize component: " + e.getMessage());
                 e.printStackTrace();
@@ -504,7 +511,7 @@ public class WorldEditor extends GGApplication implements Actionable{
     }
 
     public static DefaultMutableTreeNode addComponentToTree(Component comp, DefaultMutableTreeNode parent){
-        DefaultMutableTreeNode child = new DefaultMutableTreeNode(comp.getClass().getSimpleName() + ": " + comp.getId());
+        DefaultMutableTreeNode child = new DefaultMutableTreeNode(new TreeNodeComponentHolder(comp));
         treeModel.insertNodeInto(child, parent, parent.getChildCount());
         tree.scrollPathToVisible(new TreePath(child.getPath()));
         return child;
@@ -526,7 +533,7 @@ public class WorldEditor extends GGApplication implements Actionable{
             DefaultMutableTreeNode node = (DefaultMutableTreeNode)
                     tree.getLastSelectedPathComponent();
             if(node == null) return;
-            useTreeItem((String) node.getUserObject());
+            useTreeItem((TreeNodeComponentHolder) node.getUserObject());
         });
         /*
         TreeItem[] dragitem = new TreeItem[1];
@@ -616,10 +623,10 @@ public class WorldEditor extends GGApplication implements Actionable{
         tree.pack();*/
     }
 
-    public static void useTreeItem(String item){
-        int id = Integer.parseInt(item.substring(item.lastIndexOf(":") + 2));
+    public static void useTreeItem(TreeNodeComponentHolder item){
+        long id = item.component.getGUID();
 
-        Component component = WorldEngine.getCurrent().find(id);
+        Component component = WorldEngine.getCurrent().findByGUID(id).get();
         Class clazz = component.getClass();
         Class vmclass = ViewModelComponentRegistry.findViewModel(clazz);
 
@@ -642,11 +649,11 @@ public class WorldEditor extends GGApplication implements Actionable{
         });
     }
 
-    private static TreePath findById(int id) {
+    private static TreePath findByGUID(long id) {
         Enumeration<TreeNode> e = WorldEditor.upperTreeNode.depthFirstEnumeration();
         while (e.hasMoreElements()) {
             DefaultMutableTreeNode node = (DefaultMutableTreeNode) e.nextElement();
-            if (Integer.parseInt(node.toString().substring(node.toString().lastIndexOf(":") + 2 )) == id) {
+            if (((TreeNodeComponentHolder)node.getUserObject()).component.getGUID() == id) {
                 return new TreePath(node.getPath());
             }
         }
@@ -694,7 +701,7 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         Executor.every(Duration.ofMinutes(5), () -> {
             GGConsole.log("Autosaving world to autosave.bwf...");
-            WorldLoader.saveWorld(WorldEngine.getCurrent(), "autosave.bwf");
+            WorldLoader.saveWorldFile(WorldEngine.getCurrent(), "autosave.bwf");
             GGConsole.log("Autosave completed!");
         });
 
@@ -711,7 +718,7 @@ public class WorldEditor extends GGApplication implements Actionable{
                 var runnableClass = classes.stream()
                         .map(Objects::requireNonNull)
                         .filter(GGApplication.class::isAssignableFrom)
-                        .map(s -> ((Class<GGApplication>)s) ).findFirst().get();
+                        .map(s -> (Class<GGApplication>) s).findFirst().get();
 
                 GGConsole.log("Found runnable class in jarfile: " + runnableClass.getName());
 
@@ -788,13 +795,14 @@ public class WorldEditor extends GGApplication implements Actionable{
             Vector2f mousepos = MouseController.get();
             float mult = 0.5f;
             Vector3f currot = new Vector3f(mousepos.multiply(mult).y-180, mousepos.multiply(mult).x, 0);
-            cam.setRotation(new Quaternionf(new Vector3f(currot.x, currot.y, currot.z)).invert());
+            cam.setRotation(new Quaternionf(new Vector3f(currot.x, currot.y, currot.z)));
 
             Vector3f nvector = new Vector3f(control).inverse().multiply(delta * 15);
 
             nvector = new Quaternionf(new Vector3f(currot.x, currot.y, currot.z)).transform(nvector);
             cam.setPosition(cam.getPosition().add(nvector));
         }
+        RenderEngine.useView(cam);
     }
 
     @Override
@@ -873,4 +881,16 @@ public class WorldEditor extends GGApplication implements Actionable{
         }
     }
 
+    static class TreeNodeComponentHolder{
+        Component component;
+
+        public TreeNodeComponentHolder(Component c){
+            this.component = c;
+        }
+
+        @Override
+        public String toString(){
+            return component.getName() + " (" + component.getClass().getSimpleName() + ")";
+        }
+    }
 }
