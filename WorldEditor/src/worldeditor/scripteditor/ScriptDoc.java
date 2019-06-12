@@ -54,9 +54,6 @@ public class ScriptDoc extends DefaultStyledDocument {
         StyleConstants.setForeground(javadoc, color);
     }
 
-    public void setAnnotationColor(Color color) {
-        StyleConstants.setForeground(annotation, color);
-    }
 
     private void insertKeyword(String str, int pos, SimpleAttributeSet as) {
         try {

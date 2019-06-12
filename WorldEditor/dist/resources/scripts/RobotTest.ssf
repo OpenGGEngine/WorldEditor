@@ -1,0 +1,6 @@
+import java.awt.Robot;~try{
+Robot robot = new Robot();
+robot.mouseMove(0,0);
+}catch (Exception e){
+e.printStackTrace();
+}

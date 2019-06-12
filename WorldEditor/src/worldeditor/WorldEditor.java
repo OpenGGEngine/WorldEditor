@@ -16,20 +16,15 @@ import com.opengg.core.io.ControlType;
 import com.opengg.core.io.input.mouse.MouseController;
 import com.opengg.core.math.*;
 import com.opengg.core.model.Model;
-import com.opengg.core.model.io.AssimpModelLoader;
-import com.opengg.core.model.io.BMFFile;
 import com.opengg.core.render.*;
 import com.opengg.core.render.objects.ObjectCreator;
 import com.opengg.core.render.texture.Texture;
 import com.opengg.core.render.window.WindowController;
 import com.opengg.core.render.window.WindowInfo;
-import com.opengg.core.script.Script;
-import com.opengg.core.script.ScriptCompiler;
 import com.opengg.core.script.ScriptLoader;
 import com.opengg.core.util.JarClassUtil;
 import com.opengg.core.world.Action;
 import com.opengg.core.world.*;
-import com.opengg.core.world.components.CameraComponent;
 import com.opengg.core.world.components.Component;
 import com.opengg.core.world.components.viewmodel.Initializer;
 import com.opengg.core.world.components.viewmodel.ViewModel;
@@ -51,7 +46,6 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -162,6 +156,8 @@ public class WorldEditor extends GGApplication implements Actionable{
             boolean cool = true;
             if(cool) {
                 Theme.applyTheme();
+            }else{
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             }
         } catch (Exception e){
             e.printStackTrace();
@@ -175,7 +171,6 @@ public class WorldEditor extends GGApplication implements Actionable{
         mainpanel = new JPanel();
         mainpanel.setMinimumSize(window.getMinimumSize());
         window.add(mainpanel);
-
 
         mainpanel.setLayout(new GridBagLayout());
 
@@ -197,22 +192,15 @@ public class WorldEditor extends GGApplication implements Actionable{
         var objects = new JMenu();
         objects.setText("Objects");
 
-        var assetLoader = new JMenuItem();
-        assetLoader.setText("Asset Loader");
-        assetLoader.addActionListener((e) -> new AssetDialog(getFrame()));
-
-        var scriptEditor = new JMenuItem();
-        scriptEditor.setText("Script Editor");
-        scriptEditor.addActionListener((e) -> new ScriptEditor("New Script","").show());
-
+        var tools = new JMenu();
+        tools.setText("Tools");
 
         menuBar.add(fileMenu);
         menuBar.add(editMenu);
         menuBar.add(gameMenu);
         menuBar.add(worldMenu);
         menuBar.add(objects);
-        menuBar.add(assetLoader);
-        menuBar.add(scriptEditor);
+        menuBar.add(tools);
 
         var newWorld = new JMenuItem();
         newWorld.setText("Create new world");
@@ -226,6 +214,14 @@ public class WorldEditor extends GGApplication implements Actionable{
         savemap.setText("Save world");
         savemap.addActionListener((e) -> createWorldSaveChooser());
 
+        var openGameDirectory = new JMenuItem();
+        openGameDirectory.setText("Open game directory");
+        openGameDirectory.addActionListener(a -> {try {
+            Runtime.getRuntime().exec("explorer.exe /select," + Resource.getAbsoluteFromLocal(""));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }});
+
         var quit = new JMenuItem();
         quit.setText("Quit");
         quit.addActionListener((e) -> System.exit(0));
@@ -237,13 +233,22 @@ public class WorldEditor extends GGApplication implements Actionable{
         fileMenu.add(newWorld);
         fileMenu.add(loadmap);
         fileMenu.add(savemap);
+        fileMenu.add(openGameDirectory);
         fileMenu.addSeparator();
         fileMenu.add(quit);
         fileMenu.add(reload);
 
+        var assetLoader = new JMenuItem();
+        assetLoader.setText("Asset Loader");
+        assetLoader.addActionListener((e) -> new AssetDialog(getFrame()));
 
+        var scriptEditor = new JMenuItem();
+        scriptEditor.setText("Script Editor");
+        scriptEditor.addActionListener((e) -> new ScriptEditor());
+
+        tools.add(assetLoader);
+        tools.add(scriptEditor);
         OpenGG.asyncExec(() -> generateObjectMenu(objects));
-
 
         var gbc = new GridBagConstraints();
         gbc.weightx = 1;
@@ -329,6 +334,7 @@ public class WorldEditor extends GGApplication implements Actionable{
              {
                  OpenGG.endApplication();
                  e.getWindow().dispose();
+                 System.exit(0);
              }
          });
 

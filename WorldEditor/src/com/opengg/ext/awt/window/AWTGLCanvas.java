@@ -2,6 +2,7 @@ package com.opengg.ext.awt.window;
 
 import java.awt.AWTException;
 import java.awt.Canvas;
+import java.lang.reflect.InvocationTargetException;
 
 import org.lwjgl.system.Platform;
 
@@ -28,13 +29,17 @@ public abstract class AWTGLCanvas extends Canvas {
         try {
             @SuppressWarnings("unchecked")
             Class<? extends PlatformGLCanvas> clazz = (Class<? extends PlatformGLCanvas>) AWTGLCanvas.class.getClassLoader().loadClass(platformClassName);
-            platformCanvas = clazz.newInstance();
+            platformCanvas = clazz.getDeclaredConstructor().newInstance();
         } catch (ClassNotFoundException e) {
             throw new AssertionError("Platform-specific GLCanvas class not found: " + platformClassName);
         } catch (InstantiationException e) {
             throw new AssertionError("Could not instantiate platform-specific GLCanvas class: " + platformClassName);
         } catch (IllegalAccessException e) {
             throw new AssertionError("Could not instantiate platform-specific GLCanvas class: " + platformClassName);
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
         }
     }
 

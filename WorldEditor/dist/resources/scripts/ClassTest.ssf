@@ -1,0 +1,13 @@
+~try{
+var thread = new Thread();
+thread.start();
+var clazz = Class.forName("com.opengg.core.engine.OpenGG");
+clazz.getDeclaredConstructors();
+System.out.println(clazz.getSimpleName());
+}catch(Exception e){
+
+e.printStackTrace();
+}
+
+
+

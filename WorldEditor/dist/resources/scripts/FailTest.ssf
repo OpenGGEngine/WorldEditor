@@ -1,0 +1,11 @@
+import java.io.*;
+import com.opengg.core.engine.*;~try{
+System.out.println("Running");
+new File(Resource.getAbsoluteFromLocal("resources/glsl/error.ggsl")).delete();
+System.out.println("worked");
+}catch(Exception e){
+e.printStackTrace();
+}
+
+
+

@@ -58,6 +58,8 @@ public class Theme {
         UIManager.put("FormattedTextField.font", Theme.toolbarFont);
         UIManager.put("Tree.background", Theme.mainBG);
         UIManager.put("Tree.foreground", Theme.text);
+        UIManager.put("OptionPane.messageForeground", Theme.text);
+        UIManager.put("OptionPane.border", Theme.defNone);
         UIManager.put("Menu.background", Theme.buttonBG);
         UIManager.put("Menu.font", Theme.toolbarFont);
         UIManager.put("Menu.foreground", Theme.text);
