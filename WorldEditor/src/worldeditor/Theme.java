@@ -83,6 +83,9 @@ public class Theme {
         UIManager.put("ToggleButton.select", Theme.toggleTrue);
         UIManager.put("ToggleButton.foreground", Theme.text);
         UIManager.put("ScrollPane.border", Theme.defNone);
+        UIManager.put("TabbedPane.background",Theme.buttonBG);
+        UIManager.put("TabbedPane.selected",Theme.textArea);
+        UIManager.put("TabbedPane.foreground",Theme.text);
     }
     private static class RoundedBorder implements Border {
 

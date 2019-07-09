@@ -21,7 +21,6 @@ import com.opengg.core.render.objects.ObjectCreator;
 import com.opengg.core.render.texture.Texture;
 import com.opengg.core.render.window.WindowController;
 import com.opengg.core.render.window.WindowInfo;
-import com.opengg.core.script.ScriptLoader;
 import com.opengg.core.util.JarClassUtil;
 import com.opengg.core.world.Action;
 import com.opengg.core.world.*;
@@ -313,7 +312,13 @@ public class WorldEditor extends GGApplication implements Actionable{
         gbc.gridy = 2;
         gbc.gridwidth = 4;
         gbc.gridheight = 1;
-        mainpanel.add(console, gbc);
+        gbc.ipady = 150;
+
+        JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
+
+        tabbedPane.addTab("Console", null, console, null);
+
+        mainpanel.add(tabbedPane, gbc);
 
         consoletext = new JTextArea();
         consoletext.setEditable(false);
@@ -324,6 +329,9 @@ public class WorldEditor extends GGApplication implements Actionable{
         console.setViewportView(consoletext);
 
         GGConsole.addOutputConsumer(new DefaultLoggerOutputConsumer(Level.DEBUG, s -> consoletext.append(s + "\n")));
+
+        JScrollPane assetBrowser = new JScrollPane();
+        tabbedPane.addTab("Assets", null, assetBrowser, null);
 
         setupTree();
 
@@ -555,8 +563,8 @@ public class WorldEditor extends GGApplication implements Actionable{
             if(node == null) return;
             useTreeItem((TreeNodeComponentHolder) node.getUserObject());
         });
-        /*
-        TreeItem[] dragitem = new TreeItem[1];
+
+        /*TreeItem[] dragitem = new TreeItem[1];
 
         DragSource source = new DragSource(tree, DND.DROP_MOVE | DND.DROP_COPY | DND.DROP_LINK);
         source.setTransfer(new Transfer[]{TextTransfer.getInstance()});
@@ -640,7 +648,8 @@ public class WorldEditor extends GGApplication implements Actionable{
         });
 
 
-        tree.pack();*/
+        tree.pack();
+        */
     }
 
     public static void useTreeItem(TreeNodeComponentHolder item){
@@ -721,7 +730,7 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         Executor.every(Duration.ofMinutes(5), () -> {
             GGConsole.log("Autosaving world to autosave.bwf...");
-            WorldLoader.saveWorldFile(WorldEngine.getCurrent(), "autosave.bwf");
+            //WorldLoader.saveWorldFile(WorldEngine.getCurrent(), "autosave.bwf");
             GGConsole.log("Autosave completed!");
         });
 

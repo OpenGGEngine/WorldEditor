@@ -154,7 +154,6 @@ public class ScriptEditor extends JFrame {
 
         createNewEditor("","","");
 
-        window.setVisible(true);
     }
 
     private void createNewEditor(String name, String imports, String contents){
@@ -162,6 +161,10 @@ public class ScriptEditor extends JFrame {
             var scriptName = JOptionPane.showInputDialog("New script name:");
             name = scriptName;
         }
+        //Window closed or empty name
+        if(name == null || name.equals("")) return;
+
+
 
         var contentPanel = new JPanel();
 
@@ -216,6 +219,7 @@ public class ScriptEditor extends JFrame {
             currentlyOpen.remove(tabbedPane.indexOfComponent(contentPanel));
             tabbedPane.remove(tabbedPane.indexOfComponent(contentPanel));
         }));
+        this.setVisible(true);
 
     }
 
