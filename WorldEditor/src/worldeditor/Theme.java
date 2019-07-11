@@ -22,7 +22,13 @@ public class Theme {
     public static Font consoleFont = new Font("Verdana",0,11);
     public static Font toolbarFont = new Font("Verdana",0,12);
     public static ImageIcon vec3 =  new ImageIcon(new ImageIcon("resources/icons/smallcoord.png","coord").getImage());
+    public static ImageIcon sound =  new ImageIcon(new ImageIcon("resources/icons/soundicon.png","sound").getImage());
     public static ImageIcon trash = new ImageIcon("resources/icons/remove.png","remove");
+    public static ImageIcon folderIcon = new ImageIcon("resources/icons/folder.png","folder");
+    public static ImageIcon scriptIcon = new ImageIcon("resources/icons/script.png","script");
+    public static ImageIcon fileIcon = new ImageIcon("resources/icons/file.png","file");
+
+    public static Border tabPaneBorder = BorderFactory.createEtchedBorder();
 
     public static void applyTheme() throws UnsupportedLookAndFeelException {
         UIManager.setLookAndFeel(new MetalLookAndFeel());
@@ -81,11 +87,15 @@ public class Theme {
         UIManager.put("ToggleButton.background", Theme.toggleFalse);
         UIManager.put("ToggleButton.border", Theme.buttonNone);
         UIManager.put("ToggleButton.select", Theme.toggleTrue);
+        UIManager.put("ToggleButton.shadow",Theme.toggleTrue);
         UIManager.put("ToggleButton.foreground", Theme.text);
         UIManager.put("ScrollPane.border", Theme.defNone);
         UIManager.put("TabbedPane.background",Theme.buttonBG);
         UIManager.put("TabbedPane.selected",Theme.textArea);
         UIManager.put("TabbedPane.foreground",Theme.text);
+        UIManager.put("TabbedPane.borderHightlightColor",Theme.mainBG);
+        UIManager.put("TabbedPane.border", Theme.tabPaneBorder);
+        UIManager.put("SplitPane.dividerSize", 5);
     }
     private static class RoundedBorder implements Border {
 

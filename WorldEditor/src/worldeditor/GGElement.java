@@ -217,7 +217,6 @@ public class GGElement extends JPanel{
                 }));
 
         } else if (element.type == Element.Type.MODEL) {
-
             JButton button = new JGradientButton("Choose Model");
             this.add(button);
             all.add(button);
@@ -292,6 +291,9 @@ public class GGElement extends JPanel{
         }else if(element.type == Element.Type.TEXTURE){
             TextureData data = (TextureData)element.value;
             ((JButton)all.get(0)).setText(data.source);
+        }else if(element.type == Element.Type.MODEL){
+            Model model = (Model)element.value;
+            ((JGradientButton)all.get(0)).setText(model == null? "Choose Model" : model.getName());
         }
     }
     
