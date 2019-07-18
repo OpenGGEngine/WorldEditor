@@ -166,7 +166,7 @@ public class GGElement extends JPanel{
             });
         } else if (element.type == Element.Type.STRING) {
 
-            JTextField v1 = new JTextField();
+            JTextField v1 = new RoundedTextField(12);
             this.add(v1, new GridBagConstraints(RELATIVE, 0, 3, 1, 0.5, 0.5, CENTER, BOTH, new Insets(5,5,5,5), 2, 2));
             all.add(v1);
 
