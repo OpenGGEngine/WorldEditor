@@ -14,13 +14,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
 public class AssetBrowserListRenderer extends DefaultListCellRenderer {
-    private static Map<String, ImageIcon> iconCache = new ConcurrentHashMap<>();
-    private static ConcurrentLinkedQueue<String> keyOrder = new ConcurrentLinkedQueue<>();
-    private static ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(5);
+    private static final Map<String, ImageIcon> iconCache = new ConcurrentHashMap<>();
+    private static final ConcurrentLinkedQueue<String> keyOrder = new ConcurrentLinkedQueue<>();
+    private static final ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(5);
 
     private static int CACHE_SIZE = 180;
 
-    public static void requestImageThumbnail(File file){
+    public static ImageIcon requestImageThumbnail(File file){
         String ext = FileUtil.getFileExt(file.getName());
         switch (ext) {
             case "png","jpg" -> {
@@ -37,9 +37,12 @@ public class AssetBrowserListRenderer extends DefaultListCellRenderer {
                             e.printStackTrace();
                         }
                     });
+                }else{
+                    return iconCache.get(file.getAbsolutePath());
                 }
             }
         }
+        return null;
     }
     @Override
     public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected,
