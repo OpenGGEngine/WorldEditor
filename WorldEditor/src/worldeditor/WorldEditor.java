@@ -21,17 +21,18 @@ import com.opengg.core.render.objects.ObjectCreator;
 import com.opengg.core.render.texture.Texture;
 import com.opengg.core.render.window.WindowController;
 import com.opengg.core.render.window.WindowInfo;
-import com.opengg.core.script.ScriptLoader;
 import com.opengg.core.util.JarClassUtil;
 import com.opengg.core.world.Action;
 import com.opengg.core.world.*;
 import com.opengg.core.world.components.Component;
-import com.opengg.core.world.components.viewmodel.Initializer;
+import com.opengg.core.editor.Initializer;
 import com.opengg.core.world.components.viewmodel.ViewModel;
 import com.opengg.core.world.components.viewmodel.ViewModelComponentRegistry;
 import com.opengg.ext.awt.AWTExtension;
 import com.opengg.ext.awt.window.GGCanvas;
 import worldeditor.assetloader.AssetDialog;
+import worldeditor.dataview.GGView;
+import worldeditor.resources.NewComponentDialog;
 import worldeditor.scripteditor.ScriptEditor;
 
 import javax.swing.*;
@@ -74,7 +75,7 @@ public class WorldEditor extends GGApplication implements Actionable{
     private static Vector3fm controlrot = new Vector3fm();
     private static Camera cam;
 
-    private static EditorTransmitter transmitter;
+    private static ActionTransmitter transmitter;
     private static DefaultTreeModel treeModel;
     private static DefaultMutableTreeNode upperTreeNode;
 
@@ -410,13 +411,13 @@ public class WorldEditor extends GGApplication implements Actionable{
         try {
             viewmodel = (ViewModel) Objects.requireNonNull(vmclazz).getDeclaredConstructor().newInstance();
         } catch (Exception ex) {
-            System.out.println(ex.getMessage());
             GGConsole.error("Failed to create instance of a ViewModel for " + clazz.getName() + ", is there a default constructor?");
+            GGConsole.exception(ex);
             return;
         }
 
         var initializer = viewmodel.getInitializer(new Initializer());
-        if (initializer.elements.isEmpty()) {
+        if (initializer.dataBindings.isEmpty()) {
             createComponent(initializer, viewmodel);
         } else {
             NewComponentDialog ncs = new NewComponentDialog(initializer, viewmodel, getFrame());
@@ -438,15 +439,6 @@ public class WorldEditor extends GGApplication implements Actionable{
             }
         });
 
-    }
-
-    public static void useViewModel(ViewModel cvm){
-        editarea.removeAll();
-        GGView view = new GGView(cvm);
-        editarea.add(view);
-        editarea.validate();
-        currentComponent = cvm.component;
-        currentview = view;
     }
 
     public static void updateAddRegion(){
@@ -660,13 +652,24 @@ public class WorldEditor extends GGApplication implements Actionable{
             try{
                 ViewModel cvm = (ViewModel) vmclass.getDeclaredConstructor().newInstance();
                 cvm.setComponent(component);
-                cvm.updateAll();
                 useViewModel(cvm);
                 window.setVisible(true);
             }catch(InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException ex){
                 GGConsole.error("Failed to create instance of a ComponentViewModel for " + component.getName() + ", is there a default constructor?");
             }
         });
+    }
+
+
+    public static void useViewModel(ViewModel cvm){
+        cvm.createMainViewModel();
+
+        editarea.removeAll();
+        GGView view = new GGView(cvm);
+        editarea.add(view);
+        editarea.validate();
+        currentComponent = cvm.component;
+        currentview = view;
     }
 
     private static TreePath findByGUID(long id) {
@@ -688,6 +691,7 @@ public class WorldEditor extends GGApplication implements Actionable{
     public void setup(){
         ViewModelComponentRegistry.initialize();
         GGDebugRenderer.setEnabled(true);
+        OpenGG.getDebugOptions().setLogOnComponentCreation(true);
 
         refreshComponentList();
         updateAddRegion();
@@ -727,7 +731,7 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         Executor.every(Duration.ofMillis(100), () -> {
             if (currentview != null && currentview.isComplete()) {
-                currentview.update();
+                currentview.updateUI();
             }
         });
 
@@ -786,8 +790,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         cam = new Camera();
         RenderEngine.useView(cam);
 
-        transmitter = new EditorTransmitter();
-        transmitter.editor = this;
+        transmitter = this::onAction;
         BindController.addController(transmitter);
 
         WorldEngine.getCurrent().getRenderEnvironment().setSkybox(new Skybox(Texture.getSRGBCubemap(Resource.getTexturePath("skybox\\majestic_ft.png"),

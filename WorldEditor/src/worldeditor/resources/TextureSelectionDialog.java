@@ -3,19 +3,18 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package worldeditor;
+package worldeditor.resources;
 
 import com.opengg.core.console.GGConsole;
 import com.opengg.core.engine.Resource;
-import com.opengg.core.render.texture.Texture;
 import com.opengg.core.render.texture.TextureData;
 import com.opengg.core.render.texture.TextureManager;
 import com.opengg.core.util.GGFuture;
+import worldeditor.JGradientButton;
 
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.concurrent.Future;
 
 /**
  *

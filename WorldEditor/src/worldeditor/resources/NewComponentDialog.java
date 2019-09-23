@@ -3,14 +3,15 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package worldeditor;
+package worldeditor.resources;
 
 import com.opengg.core.world.components.viewmodel.ViewModel;
-import com.opengg.core.world.components.viewmodel.Initializer;
+import com.opengg.core.editor.Initializer;
+import worldeditor.JGradientButton;
+import worldeditor.WorldEditor;
+import worldeditor.dataview.GGElement;
 
 import java.awt.*;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.swing.*;
 
@@ -35,10 +36,9 @@ public class NewComponentDialog extends JDialog{
         content.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         content.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
 
-        for(var vm : initializer.elements){
-            var element = new GGElement(vm, null);
-            total.add(element);
-        }
+        initializer.dataBindings.stream()
+                .map(GGElement::new)
+                .forEach(total::add);
 
         JGradientButton create = new JGradientButton("Create Component");
         create.addActionListener(e -> {
