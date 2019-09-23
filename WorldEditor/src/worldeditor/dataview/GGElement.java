@@ -13,6 +13,7 @@ import com.opengg.core.math.Vector4f;
 import com.opengg.core.model.Model;
 import com.opengg.core.render.texture.TextureData;
 import worldeditor.JGradientButton;
+import worldeditor.RoundedTextField;
 import worldeditor.Theme;
 import worldeditor.resources.ModelSelectionDialog;
 import worldeditor.resources.TextureSelectionDialog;
@@ -174,7 +175,7 @@ public class GGElement extends JPanel {
             }
             case STRING -> {
 
-                JTextField v1 = new JTextField();
+                JTextField v1 = new RoundedTextField(12);
                 this.add(v1, new GridBagConstraints(RELATIVE, 0, 3, 1, 0.5, 0.5, CENTER, BOTH, new Insets(5, 5, 5, 5), 2, 2));
                 all.add(v1);
 

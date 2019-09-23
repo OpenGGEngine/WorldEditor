@@ -21,6 +21,7 @@ import com.opengg.core.render.objects.ObjectCreator;
 import com.opengg.core.render.texture.Texture;
 import com.opengg.core.render.window.WindowController;
 import com.opengg.core.render.window.WindowInfo;
+import com.opengg.core.util.FileUtil;
 import com.opengg.core.util.JarClassUtil;
 import com.opengg.core.world.Action;
 import com.opengg.core.world.*;
@@ -36,28 +37,28 @@ import worldeditor.resources.NewComponentDialog;
 import worldeditor.scripteditor.ScriptEditor;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.border.EtchedBorder;
+import javax.swing.border.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.DefaultCaret;
 import javax.swing.tree.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 import static com.opengg.core.io.input.keyboard.Key.*;
 import static java.util.Map.entry;
 
 
-public class WorldEditor extends GGApplication implements Actionable{
+public class WorldEditor extends GGApplication implements Actionable {
     private static final Object initlock = new Object();
     private static JFrame window;
     private static JPanel mainpanel;
@@ -69,6 +70,7 @@ public class WorldEditor extends GGApplication implements Actionable{
     private static JPanel canvasregion;
     private static JPanel treearea;
     private static JTextArea consoletext;
+    private static JLabel directoryLabel;
 
     private static boolean refresh;
     private static Vector3fm control = new Vector3fm();
@@ -300,7 +302,7 @@ public class WorldEditor extends GGApplication implements Actionable{
         gbc.gridx = GridBagConstraints.RELATIVE;
         gbc.gridy = 0;
         gbc.gridwidth = 1;
-        gbc.gridheight = 2;
+        gbc.gridheight = 3;
         mainpanel.add(editarea, gbc);
 
         JScrollPane console = new JScrollPane();
@@ -312,38 +314,137 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         gbc.gridx = 0;
         gbc.gridy = 2;
-        gbc.gridwidth = 4;
+        gbc.gridwidth = 3;
         gbc.gridheight = 1;
-        mainpanel.add(console, gbc);
+        gbc.ipady = 250;
+
+        JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
+
+        mainpanel.add(tabbedPane, gbc);
 
         consoletext = new JTextArea();
         consoletext.setEditable(false);
 
-        DefaultCaret caret = (DefaultCaret)consoletext.getCaret();
+        DefaultCaret caret = (DefaultCaret) consoletext.getCaret();
         caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
         console.setViewportView(consoletext);
+        consoletext.setFont(new Font("Consolas",Font.PLAIN,13));
 
         GGConsole.addOutputConsumer(new DefaultLoggerOutputConsumer(Level.DEBUG, s -> consoletext.append(s + "\n")));
 
+        JSplitPane splitPane = new JSplitPane();
+        FileTreeModel fileTreeModel = new FileTreeModel(Resource.getAbsoluteFromLocal("resources"));
+        JTree tree = new JTree();
+        tree.setModel(fileTreeModel);
+        Box verticalBox = Box.createVerticalBox();
+        JPanel horizontalBox = new JPanel();
+        horizontalBox.setLayout(new BoxLayout(horizontalBox,BoxLayout.LINE_AXIS));
+        horizontalBox.setMaximumSize(new Dimension(1920,50));
+        horizontalBox.setBackground(Theme.textArea.brighter());
+        directoryLabel = new JLabel(Resource.getAbsoluteFromLocal("resources"));
+        JTextField searchBar = new RoundedTextField(1);
+        horizontalBox.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+        Border outer = searchBar.getBorder();
+        Border search = new MatteBorder(0, 16, 0, 0, Theme.searchIcon);
+        searchBar.setBorder( new CompoundBorder(outer, search) );
+        horizontalBox.add(directoryLabel);
+        horizontalBox.add(Box.createHorizontalStrut(100));
+        horizontalBox.add(searchBar);
+        verticalBox.add(horizontalBox);
+        JList list = new JList();
+        JScrollPane left = new JScrollPane(tree);
+        JScrollPane right = new JScrollPane(list);
+        verticalBox.add(right);
+        splitPane.setLeftComponent(left);
+        splitPane.setRightComponent(verticalBox);
+        list.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+        list.setVisibleRowCount(-1);
+        list.setCellRenderer(new AssetBrowserListRenderer());
+        DefaultListModel<FileTreeModel.FileToStringFix> model = new DefaultListModel<>();
+        list.setModel(model);
+
+        final String[] currDirectory = new String[]{Resource.getAbsoluteFromLocal("resources")};
+        updateListAssetView(new File(currDirectory[0]),model,"");
+
+        list.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent evt) {
+                JList list = (JList) evt.getSource();
+                if (evt.getClickCount() == 2) {
+                    int index = list.locationToIndex(evt.getPoint());
+                    FileTreeModel.FileToStringFix file = model.get(index);
+                    currDirectory[0] = file.getAbsolutePath();
+                    String ext = FileUtil.getFileExt(file.getName());
+                    if (ext.equals(file.getName())) {
+                        updateListAssetView(file,model,"");
+                    } else {
+                        switch (ext) {
+                            case "ssf" -> new ScriptEditor(file);
+                            case "ogg", "png", "jpg", "gif" -> {
+                                try {
+                                    Desktop.getDesktop().open(file);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        searchBar.getDocument().addDocumentListener(new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) {
+                warn();
+            }
+            public void removeUpdate(DocumentEvent e) {
+                warn();
+            }
+            public void insertUpdate(DocumentEvent e) {
+                warn();
+            }
+
+            public void warn() {
+                updateListAssetView(new File(currDirectory[0]),model,searchBar.getText());
+            }
+        });
+        tree.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    currDirectory[0] = ((FileTreeModel.FileToStringFix) tree.getLastSelectedPathComponent()).getAbsolutePath();
+                    updateListAssetView((FileTreeModel.FileToStringFix) tree.getLastSelectedPathComponent(),model,"");
+                }
+            }
+        });
+        tabbedPane.addTab("Assets", null, splitPane, null);
+        tabbedPane.addTab("Console", null, console, null);
+
         setupTree();
 
-         mainpanel.doLayout();
-         window. addWindowListener(new WindowAdapter()  {
-             @Override
-             public void windowClosing(WindowEvent e)
-             {
-                 OpenGG.endApplication();
-                 e.getWindow().dispose();
-                 System.exit(0);
-             }
-         });
+        mainpanel.doLayout();
+        window.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                OpenGG.endApplication();
+                e.getWindow().dispose();
+                System.exit(0);
+            }
+        });
 
         window.setVisible(true);
 
-         synchronized (initlock){
-             initlock.notifyAll();
-         }
+        synchronized (initlock) {
+            initlock.notifyAll();
+        }
+    }
+
+    private static void updateListAssetView(File file,DefaultListModel model,String filter){
+        model.clear();
+        directoryLabel.setText(file.getAbsolutePath().substring(Resource.getAbsoluteFromLocal("").length() + 1).replace(File.separator," > "));
+            Arrays.stream(Objects.requireNonNull(file.listFiles())).filter(fi ->
+                    fi.getName().contains(filter)).forEach(h -> {
+                model.addElement(new FileTreeModel.FileToStringFix(h.getAbsolutePath()));
+                AssetBrowserListRenderer.requestImageThumbnail(h);
+            });
     }
 
     private static void generateObjectMenu(JMenu menu) {
@@ -547,8 +648,8 @@ public class WorldEditor extends GGApplication implements Actionable{
             if(node == null) return;
             useTreeItem((TreeNodeComponentHolder) node.getUserObject());
         });
-        /*
-        TreeItem[] dragitem = new TreeItem[1];
+
+        /*TreeItem[] dragitem = new TreeItem[1];
 
         DragSource source = new DragSource(tree, DND.DROP_MOVE | DND.DROP_COPY | DND.DROP_LINK);
         source.setTransfer(new Transfer[]{TextTransfer.getInstance()});
@@ -632,7 +733,8 @@ public class WorldEditor extends GGApplication implements Actionable{
         });
 
 
-        tree.pack();*/
+        tree.pack();
+        */
     }
 
     public static void useTreeItem(TreeNodeComponentHolder item){
@@ -725,7 +827,7 @@ public class WorldEditor extends GGApplication implements Actionable{
 
         Executor.every(Duration.ofMinutes(5), () -> {
             GGConsole.log("Autosaving world to autosave.bwf...");
-            WorldLoader.saveWorldFile(WorldEngine.getCurrent(), "autosave.bwf");
+            //WorldLoader.saveWorldFile(WorldEngine.getCurrent(), "autosave.bwf");
             GGConsole.log("Autosave completed!");
         });
 

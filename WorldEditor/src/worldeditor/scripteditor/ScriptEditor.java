@@ -12,6 +12,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.plaf.basic.BasicButtonUI;
 import javax.tools.Diagnostic;
 import java.awt.*;
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -30,8 +31,8 @@ public class ScriptEditor extends JFrame {
     static Color annotation = new Color(100, 100, 100);
     static Color defColor = new Color(249, 38, 114);
     static Color varColor = new Color(166, 226, 46);
-    private final JLabel result;
-    private final JTabbedPane tabbedPane;
+    private final JLabel result = new JLabel("");;
+    private final JTabbedPane tabbedPane =  new JTabbedPane();;
     private final List<Tuple<String, Tuple<Supplier<String>, Supplier<String>>>> currentlyOpen = new ArrayList<>(); //name, content, imports
     public Map<String, Color> keywords = Map.ofEntries(
             Map.entry("abstract", defColor),
@@ -89,12 +90,16 @@ public class ScriptEditor extends JFrame {
      */
     public ScriptEditor() {
         super();
-        JFrame window = this;
+        initWindow();
+        createNewEditor("","","");
+
+    }
+
+    public void initWindow(){
         setBounds(100, 100, 850, 600);
         setTitle("Script Editor");
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
-        tabbedPane = new JTabbedPane();
         BorderLayout borderLayout = new BorderLayout();
         borderLayout.setVgap(1);
         borderLayout.setHgap(1);
@@ -106,7 +111,6 @@ public class ScriptEditor extends JFrame {
         buttonPane.setLayout(new FlowLayout(FlowLayout.RIGHT));
         getContentPane().add(buttonPane, BorderLayout.SOUTH);
 
-        result = new JLabel("");
         buttonPane.add(result);
 
         JButton button = new JButton("View Scripts");
@@ -151,10 +155,21 @@ public class ScriptEditor extends JFrame {
 
         });
         buttonPane.add(load);
+    }
 
-        createNewEditor("","","");
+    public ScriptEditor(File file){
+        super();
+        initWindow();
+        String data = null;
+        try {
+            data = FileStringLoader.loadStringSequence(file.getAbsolutePath());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        var newName = FileUtil.getFileName(file.getAbsolutePath());
+        System.out.println(newName);
 
-        window.setVisible(true);
+        createNewEditor(newName, data.substring(0, data.indexOf("~")), data.substring(data.indexOf("~")+1));
     }
 
     private void createNewEditor(String name, String imports, String contents){
@@ -162,6 +177,8 @@ public class ScriptEditor extends JFrame {
             var scriptName = JOptionPane.showInputDialog("New script name:");
             name = scriptName;
         }
+        //Window closed or empty name
+        if(name == null || name.equals("")) return;
 
         var contentPanel = new JPanel();
 
@@ -216,6 +233,7 @@ public class ScriptEditor extends JFrame {
             currentlyOpen.remove(tabbedPane.indexOfComponent(contentPanel));
             tabbedPane.remove(tabbedPane.indexOfComponent(contentPanel));
         }));
+        this.setVisible(true);
 
     }
 
