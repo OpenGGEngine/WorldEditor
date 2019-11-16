@@ -9,15 +9,16 @@ import com.opengg.core.GGInfo;
 import com.opengg.core.console.DefaultLoggerOutputConsumer;
 import com.opengg.core.console.GGConsole;
 import com.opengg.core.console.Level;
+import com.opengg.core.editor.ViewModel;
 import com.opengg.core.engine.*;
 import com.opengg.core.extension.ExtensionManager;
 import com.opengg.core.gui.GUIController;
 import com.opengg.core.io.ControlType;
 import com.opengg.core.io.input.mouse.MouseController;
 import com.opengg.core.math.*;
-import com.opengg.core.model.Model;
 import com.opengg.core.render.*;
 import com.opengg.core.render.objects.ObjectCreator;
+import com.opengg.core.render.shader.ShaderController;
 import com.opengg.core.render.texture.Texture;
 import com.opengg.core.render.window.WindowController;
 import com.opengg.core.render.window.WindowInfo;
@@ -26,14 +27,24 @@ import com.opengg.core.util.JarClassUtil;
 import com.opengg.core.world.Action;
 import com.opengg.core.world.*;
 import com.opengg.core.world.components.Component;
-import com.opengg.core.editor.Initializer;
-import com.opengg.core.world.components.viewmodel.ViewModel;
+import com.opengg.core.editor.BindingAggregate;
+import com.opengg.core.world.components.viewmodel.ComponentViewModel;
 import com.opengg.core.world.components.viewmodel.ViewModelComponentRegistry;
+import com.opengg.core.world.structure.CuboidWorldGeometry;
+import com.opengg.core.world.structure.ModelWorldGeometry;
+import com.opengg.core.world.structure.WorldGeometry;
+import com.opengg.core.world.structure.viewmodel.CuboidWorldGeometryViewModel;
+import com.opengg.core.world.structure.viewmodel.GeometryViewModel;
+import com.opengg.core.world.structure.viewmodel.ModelWorldGeometryViewModel;
 import com.opengg.ext.awt.AWTExtension;
 import com.opengg.ext.awt.window.GGCanvas;
 import worldeditor.assetloader.AssetDialog;
-import worldeditor.dataview.GGView;
+import worldeditor.components.FileTreeModel;
+import worldeditor.components.JGradientButton;
+import worldeditor.components.RoundedTextField;
+import worldeditor.dataview.GGViewModelView;
 import worldeditor.resources.NewComponentDialog;
+import worldeditor.resources.NewGeometryDialog;
 import worldeditor.scripteditor.ScriptEditor;
 
 import javax.swing.*;
@@ -44,32 +55,33 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.DefaultCaret;
 import javax.swing.tree.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
+import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.security.InvalidParameterException;
 import java.time.Duration;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.opengg.core.io.input.keyboard.Key.*;
-import static java.util.Map.entry;
 
 
 public class WorldEditor extends GGApplication implements Actionable {
     private static final Object initlock = new Object();
     private static JFrame window;
-    private static JPanel mainpanel;
+    private static JPanel mainPanel;
+    private static JList<String> geomList;
     private static JTree tree;
 
-    private static GGView currentview;
-    private static JPanel editarea;
-    private static JPanel addregion;
-    private static JPanel canvasregion;
-    private static JPanel treearea;
-    private static JTextArea consoletext;
+    private static GGViewModelView currentView;
+    private static JPanel editArea;
+    private static JPanel addComponentRegion;
+    private static JPanel addGeometryRegion;
+    private static JPanel listGeometryRegion;
+    private static JPanel canvasRegion;
+    private static JPanel componentTreeArea;
+    private static JTextArea consoleText;
     private static JLabel directoryLabel;
 
     private static boolean refresh;
@@ -142,7 +154,7 @@ public class WorldEditor extends GGApplication implements Actionable {
             }
         }
 
-        ExtensionManager.addExtension(new AWTExtension(canvasregion));
+        ExtensionManager.addExtension(new AWTExtension(canvasRegion));
 
         WindowInfo w = new WindowInfo();
         w.width = 800;
@@ -171,11 +183,146 @@ public class WorldEditor extends GGApplication implements Actionable {
         window.setLayout(new BorderLayout());
         window.setTitle("World Editor");
 
-        mainpanel = new JPanel();
-        mainpanel.setMinimumSize(window.getMinimumSize());
-        window.add(mainpanel);
+        setupMenu();
 
-        mainpanel.setLayout(new GridBagLayout());
+        mainPanel = new JPanel();
+        mainPanel.setMinimumSize(window.getMinimumSize());
+        window.add(mainPanel);
+
+        mainPanel.setLayout(new GridBagLayout());
+
+        var gbc = new GridBagConstraints();
+
+        gbc.fill = GridBagConstraints.BOTH;
+
+        var raisedetched = BorderFactory.createEtchedBorder(EtchedBorder.RAISED);
+
+        JTabbedPane elementsPane = new JTabbedPane();
+
+
+        var componentPanel = new JPanel(new GridBagLayout());
+
+        componentTreeArea = new JPanel();
+        componentTreeArea.setLayout(new BorderLayout());
+        componentTreeArea.setBorder(raisedetched);
+
+        addComponentRegion = new JPanel();
+        addComponentRegion.setLayout(new GridBagLayout());
+        addComponentRegion.setBorder(raisedetched);
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 1;
+        gbc.gridheight = 1;
+        gbc.weightx = gbc.weighty = 1.0;
+        componentPanel.add(componentTreeArea, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 1;
+        gbc.gridheight = 1;
+        componentPanel.add(addComponentRegion, gbc);
+
+        elementsPane.addTab("Components", componentPanel);
+        elementsPane.setMnemonicAt(0, KeyEvent.VK_1);
+
+        var geometryPanel = new JPanel(new GridBagLayout());
+
+
+        addGeometryRegion = new JPanel();
+        addGeometryRegion.setLayout(new GridBagLayout());
+        addGeometryRegion.setBorder(raisedetched);
+
+        listGeometryRegion = new JPanel();
+        listGeometryRegion.setLayout(new GridBagLayout());
+        listGeometryRegion.setBorder(raisedetched);
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 1;
+        gbc.gridheight = 1;
+        gbc.weightx = gbc.weighty = 1.0;
+        geometryPanel.add(listGeometryRegion, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 1;
+        gbc.gridheight = 1;
+        gbc.weightx = gbc.weighty = 1.0;
+        geometryPanel.add(addGeometryRegion, gbc);
+
+        elementsPane.addTab("Geometry", geometryPanel);
+        elementsPane.setMnemonicAt(1, KeyEvent.VK_2);
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 1;
+        gbc.gridheight = 2;
+        gbc.weightx = 0.25;
+        gbc.weighty = 0.70;
+        mainPanel.add(elementsPane, gbc);
+
+        canvasRegion = new JPanel();
+        canvasRegion.setLayout(new BorderLayout());
+        canvasRegion.setBorder(raisedetched);
+        canvasRegion.setMinimumSize(new Dimension(800, 600));
+        canvasRegion.setMaximumSize(new Dimension(800, 600));
+        canvasRegion.setPreferredSize(new Dimension(800, 600));
+
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        gbc.gridheight = 2;
+        gbc.weightx = 0.50;
+        gbc.weighty = 0.33;
+        mainPanel.add(canvasRegion, gbc);
+
+        editArea = new JPanel();
+        editArea.setLayout(new GridBagLayout());
+        editArea.setBorder(raisedetched);
+
+        gbc.gridx = GridBagConstraints.RELATIVE;
+        gbc.gridy = 0;
+        gbc.gridwidth = 1;
+        gbc.gridheight = 3;
+        gbc.weightx = 0.25;
+        gbc.weighty = 0.33;
+        mainPanel.add(editArea, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 3;
+        gbc.gridheight = 1;
+        gbc.weightx = 1;
+        gbc.weighty = 0.33;
+        gbc.ipady = 50;
+
+        JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
+
+        setupAssetViewer(tabbedPane);
+        setupConsole(tabbedPane);
+        mainPanel.add(tabbedPane, gbc);
+
+        setupTree();
+
+        mainPanel.doLayout();
+        window.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                OpenGG.endApplication();
+                e.getWindow().dispose();
+                System.exit(0);
+            }
+        });
+
+        window.setVisible(true);
+
+        synchronized (initlock) {
+            initlock.notifyAll();
+        }
+    }
+
+    private static void setupMenu(){
 
         var menuBar = new JMenuBar();
         window.setJMenuBar(menuBar);
@@ -241,6 +388,12 @@ public class WorldEditor extends GGApplication implements Actionable {
         fileMenu.add(quit);
         fileMenu.add(reload);
 
+        var worldEditor = new JMenuItem();
+        worldEditor.setText("Edit world properties");
+        //worldEditor.addActionListener();
+
+        worldMenu.add(worldEditor);
+
         var assetLoader = new JMenuItem();
         assetLoader.setText("Asset Loader");
         assetLoader.addActionListener((e) -> new AssetDialog(getFrame()));
@@ -251,87 +404,9 @@ public class WorldEditor extends GGApplication implements Actionable {
 
         tools.add(assetLoader);
         tools.add(scriptEditor);
-        OpenGG.asyncExec(() -> generateObjectMenu(objects));
+    }
 
-        var gbc = new GridBagConstraints();
-        gbc.weightx = 1;
-        gbc.weighty = 1;
-        gbc.fill = GridBagConstraints.BOTH;
-
-        var raisedetched = BorderFactory.createEtchedBorder(EtchedBorder.RAISED);
-
-        treearea = new JPanel();
-        treearea.setLayout(new BorderLayout());
-        treearea.setBorder(raisedetched);
-
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 1;
-        gbc.gridheight = 1;
-
-        mainpanel.add(treearea, gbc);
-        mainpanel.add(treearea, gbc);
-
-        addregion = new JPanel();
-        addregion.setLayout(new GridBagLayout());
-        addregion.setBorder(raisedetched);
-
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.gridwidth = 1;
-        gbc.gridheight = 1;
-        mainpanel.add(addregion, gbc);
-
-        canvasregion = new JPanel();
-        canvasregion.setLayout(new BorderLayout());
-        canvasregion.setBorder(raisedetched);
-        canvasregion.setMinimumSize(new Dimension(800, 600));
-        canvasregion.setMaximumSize(new Dimension(800, 600));
-        canvasregion.setPreferredSize(new Dimension(800, 600));
-
-        gbc.gridx = 1;
-        gbc.gridy = 0;
-        gbc.gridwidth = 2;
-        gbc.gridheight = 2;
-        mainpanel.add(canvasregion, gbc);
-
-        editarea = new JPanel();
-        editarea.setLayout(new GridBagLayout());
-        editarea.setBorder(raisedetched);
-
-        gbc.gridx = GridBagConstraints.RELATIVE;
-        gbc.gridy = 0;
-        gbc.gridwidth = 1;
-        gbc.gridheight = 3;
-        mainpanel.add(editarea, gbc);
-
-        JScrollPane console = new JScrollPane();
-        console.setLayout(new ScrollPaneLayout());
-        console.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        console.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
-        console.setWheelScrollingEnabled(true);
-        console.setPreferredSize(new Dimension(1000, 200));
-
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        gbc.gridwidth = 3;
-        gbc.gridheight = 1;
-        gbc.ipady = 250;
-
-        JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
-
-        mainpanel.add(tabbedPane, gbc);
-
-        consoletext = new JTextArea();
-        consoletext.setEditable(false);
-
-        DefaultCaret caret = (DefaultCaret) consoletext.getCaret();
-        caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
-
-        console.setViewportView(consoletext);
-        consoletext.setFont(new Font("Consolas",Font.PLAIN,13));
-
-        GGConsole.addOutputConsumer(new DefaultLoggerOutputConsumer(Level.DEBUG, s -> consoletext.append(s + "\n")));
+    private static void setupAssetViewer(JTabbedPane tabbedPane){
 
         JSplitPane splitPane = new JSplitPane();
         FileTreeModel fileTreeModel = new FileTreeModel(Resource.getAbsoluteFromLocal("resources"));
@@ -416,25 +491,29 @@ public class WorldEditor extends GGApplication implements Actionable {
             }
         });
         tabbedPane.addTab("Assets", null, splitPane, null);
-        tabbedPane.addTab("Console", null, console, null);
 
-        setupTree();
+    }
 
-        mainpanel.doLayout();
-        window.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                OpenGG.endApplication();
-                e.getWindow().dispose();
-                System.exit(0);
-            }
-        });
+    private static void setupConsole(JTabbedPane tabbedPane){
 
-        window.setVisible(true);
+        JScrollPane console = new JScrollPane();
+        console.setLayout(new ScrollPaneLayout());
+        console.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        console.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        console.setWheelScrollingEnabled(true);
+        console.setPreferredSize(new Dimension(1000, 200));
+        consoleText = new JTextArea();
+        consoleText.setEditable(false);
 
-        synchronized (initlock) {
-            initlock.notifyAll();
-        }
+        DefaultCaret caret = (DefaultCaret) consoleText.getCaret();
+        caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+
+        console.setViewportView(consoleText);
+        consoleText.setFont(new Font("Consolas",Font.PLAIN,13));
+
+        GGConsole.addOutputConsumer(new DefaultLoggerOutputConsumer(Level.DEBUG, s -> consoleText.append(s + "\n")));
+        tabbedPane.addTab("OpenGG console output", null, console);
+
     }
 
     private static void updateListAssetView(File file,DefaultListModel model,String filter){
@@ -445,20 +524,6 @@ public class WorldEditor extends GGApplication implements Actionable {
                 model.addElement(new FileTreeModel.FileToStringFix(h.getAbsolutePath()));
                 AssetBrowserListRenderer.requestImageThumbnail(h);
             });
-    }
-
-    private static void generateObjectMenu(JMenu menu) {
-        Map<String, Model> objectlist = Map.ofEntries(
-                entry("Torus", Resource.getModel("defaults\\torus.bmf")),
-                entry("Sphere", Resource.getModel("defaults\\sphere.bmf")),
-                entry("HemiSphere", Resource.getModel("defaults\\hemi.bmf")),
-                entry("Plane", Resource.getModel("defaults\\plane.bmf"))
-        );
-        for(Map.Entry<String,Model> entry:objectlist.entrySet()){
-            JMenuItem item = new JMenuItem(entry.getKey());
-            menu.add(item);
-        }
-
     }
 
     private static void createWorld(){
@@ -497,7 +562,7 @@ public class WorldEditor extends GGApplication implements Actionable {
         OpenGG.syncExec(() -> {
             WorldEngine.setOnlyActiveWorld(WorldLoader.loadWorld(result));
             RenderEngine.useView(cam);
-            BindController.addController(transmitter);
+            BindController.addTransmitter(transmitter);
         });
 
         refreshComponentList();
@@ -507,28 +572,42 @@ public class WorldEditor extends GGApplication implements Actionable {
         var info = ViewModelComponentRegistry.getByClassname(name);
         Class clazz = info.getComponent();
         Class vmclazz = ViewModelComponentRegistry.findViewModel(clazz);
-        ViewModel viewmodel;
+        ComponentViewModel viewmodel;
 
         try {
-            viewmodel = (ViewModel) Objects.requireNonNull(vmclazz).getDeclaredConstructor().newInstance();
+            viewmodel = (ComponentViewModel) Objects.requireNonNull(vmclazz).getDeclaredConstructor().newInstance();
         } catch (Exception ex) {
             GGConsole.error("Failed to create instance of a ViewModel for " + clazz.getName() + ", is there a default constructor?");
             GGConsole.exception(ex);
             return;
         }
 
-        var initializer = viewmodel.getInitializer(new Initializer());
-        if (initializer.dataBindings.isEmpty()) {
+        var initializer = viewmodel.getInitializer(new BindingAggregate());
+        if (initializer.getDataBindings().isEmpty()) {
             createComponent(initializer, viewmodel);
         } else {
-            NewComponentDialog ncs = new NewComponentDialog(initializer, viewmodel, getFrame());
+            new NewComponentDialog(initializer, viewmodel, getFrame());
         }
     }
 
-    public static void createComponent(Initializer vmi, ViewModel cvm){
+    private static void createGeometryCreatorPanel(String name) {
+        var viewModel = switch (name){
+            case "CuboidWorldGeometry" -> new CuboidWorldGeometryViewModel();
+            case "ModelWorldGeometry" -> new ModelWorldGeometryViewModel();
+            default -> throw new InvalidParameterException("Invalid geometry type!");
+        };
+        var initializer = viewModel.getInitializer(new BindingAggregate());
+        if (initializer.getDataBindings().isEmpty()) {
+            createGeometry(initializer, viewModel);
+        } else {
+            new NewGeometryDialog(initializer, viewModel, getFrame());
+        }
+    }
+
+    public static void createComponent(BindingAggregate vmi, ComponentViewModel cvm){
         OpenGG.asyncExec(() -> {
             try {
-                var ncomp = cvm.getFromInitializer(vmi);
+                var ncomp = (Component) cvm.getFromInitializer(vmi);
                 WorldEngine.getCurrent().attach(ncomp);
                 WorldEngine.getCurrent().rescanRenderables();
                 refreshComponentList();
@@ -539,11 +618,20 @@ public class WorldEditor extends GGApplication implements Actionable {
                 e.printStackTrace();
             }
         });
-
     }
 
-    public static void updateAddRegion(){
-        addregion.removeAll();
+    public static void createGeometry(BindingAggregate vmi, GeometryViewModel cvm){
+        OpenGG.asyncExec(() -> {
+            var newGeom = (WorldGeometry) cvm.getFromInitializer(vmi);
+            WorldEngine.getCurrent().getStructure().addGeometry(newGeom);
+            refreshComponentList();
+            newGeom.setPosition(cam.getPosition());
+            useGeometry(newGeom);
+        });
+    }
+
+    public static void updateNewComponentList(){
+        addComponentRegion.removeAll();
 
         var strings = ViewModelComponentRegistry.getAllRegistries().stream()
                 .map(reg -> reg.getComponent().getSimpleName())
@@ -572,14 +660,14 @@ public class WorldEditor extends GGApplication implements Actionable {
         c.fill = GridBagConstraints.BOTH;
         c.gridwidth = GridBagConstraints.REMAINDER;
         c.gridx = 0;
-        listScroller.setMinimumSize(new Dimension(320,300));
-        addregion.add(listScroller,c);
+        listScroller.setMinimumSize(new Dimension(350,200));
+        addComponentRegion.add(listScroller,c);
 
         JGradientButton creator = new JGradientButton("Create Component");
         c.gridy = 1;
-        addregion.add(creator,c);
+        addComponentRegion.add(creator,c);
 
-        addregion.validate();
+        addComponentRegion.validate();
 
         classes.addListSelectionListener(s -> {
             if (!s.getValueIsAdjusting()) {
@@ -598,7 +686,62 @@ public class WorldEditor extends GGApplication implements Actionable {
         });
     }
 
+    public static void updateNewGeometryList(){
+        addGeometryRegion.removeAll();
+
+        var strings = new String[]{"CuboidWorldGeometry", "ModelWorldGeometry"};
+        GridBagConstraints c = new GridBagConstraints();
+        JList<String> classes = new JList<>(strings);
+        classes.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
+        classes.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+        classes.setCellRenderer(new DefaultListCellRenderer(){
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> list,
+                                                                   Object value, int index, boolean isSelected,
+                                                                   boolean cellHasFocus) {
+                JLabel listCellRendererComponent = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected,cellHasFocus);
+                listCellRendererComponent.setBorder(
+                        BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1, 1, 1, 1,Theme.buttonBG)
+                                ,new EmptyBorder(4,4,4,4)));
+                listCellRendererComponent.setHorizontalAlignment(CENTER);
+                return listCellRendererComponent;
+            }
+        });
+
+
+        JScrollPane listScroller = new JScrollPane(classes);
+        c.fill = GridBagConstraints.BOTH;
+        c.gridwidth = GridBagConstraints.REMAINDER;
+        c.gridx = 0;
+        listScroller.setMinimumSize(new Dimension(350,200));
+        addGeometryRegion.add(listScroller,c);
+
+        JGradientButton creator = new JGradientButton("Create Geometry");
+        c.gridy = 1;
+        addGeometryRegion.add(creator,c);
+
+        addGeometryRegion.validate();
+
+        classes.addListSelectionListener(s -> {
+            if (!s.getValueIsAdjusting()) {
+                if (classes.getSelectedIndex() == -1) {
+                    creator.setEnabled(false);
+
+                } else {
+                    creator.setEnabled(true);
+                }
+            }
+        });
+
+        creator.addActionListener((a) -> {
+            var selection = classes.getSelectedValue();
+            createGeometryCreatorPanel(selection);
+        });
+    }
+
     public static void refreshComponentList(){
+        setupGeometryList();
+
         var world = WorldEngine.getCurrent();
 
         upperTreeNode.removeAllChildren();
@@ -607,7 +750,7 @@ public class WorldEditor extends GGApplication implements Actionable {
             mystery6(compo, upperTreeNode);
         }
 
-        editarea.removeAll();
+        editArea.removeAll();
 
         var node = (DefaultMutableTreeNode) tree.getLastSelectedPathComponent();
 
@@ -640,7 +783,7 @@ public class WorldEditor extends GGApplication implements Actionable {
         tree.setShowsRootHandles(true);
         tree.setRootVisible(false);
 
-        treearea.add(tree);
+        componentTreeArea.add(tree);
 
         tree.addTreeSelectionListener((e) -> {
             DefaultMutableTreeNode node = (DefaultMutableTreeNode)
@@ -738,6 +881,8 @@ public class WorldEditor extends GGApplication implements Actionable {
     }
 
     public static void useTreeItem(TreeNodeComponentHolder item){
+        geomList.clearSelection();
+
         long id = item.component.getGUID();
 
         Component component = WorldEngine.getCurrent().findByGUID(id).get();
@@ -745,15 +890,15 @@ public class WorldEditor extends GGApplication implements Actionable {
         Class vmclass = ViewModelComponentRegistry.findViewModel(clazz);
 
         if(vmclass == null){
-            editarea.removeAll();
-            currentview = null;
+            editArea.removeAll();
+            currentView = null;
             return;
         }
 
         OpenGG.asyncExec(() -> {
             try{
-                ViewModel cvm = (ViewModel) vmclass.getDeclaredConstructor().newInstance();
-                cvm.setComponent(component);
+                ComponentViewModel cvm = (ComponentViewModel) vmclass.getDeclaredConstructor().newInstance();
+                cvm.setModel(component);
                 useViewModel(cvm);
                 window.setVisible(true);
             }catch(InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException ex){
@@ -762,16 +907,80 @@ public class WorldEditor extends GGApplication implements Actionable {
         });
     }
 
+    public static void setupGeometryList() {
+        listGeometryRegion.removeAll();
+
+        var strings = WorldEngine.getCurrent().getStructure().getAllGeometry()
+                .stream()
+                .map(g -> g.getClass().getSimpleName() + ": " + g.getGuid())
+                .collect(Collectors.toList());
+        GridBagConstraints c = new GridBagConstraints();
+        geomList = new JList<>(strings.toArray(new String[]{}));
+        geomList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        geomList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+        geomList.setCellRenderer(new DefaultListCellRenderer(){
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> list,
+                                                                   Object value, int index, boolean isSelected,
+                                                                   boolean cellHasFocus) {
+                JLabel listCellRendererComponent = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected,cellHasFocus);
+                listCellRendererComponent.setBorder(
+                        BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1, 1, 1, 1,Theme.textArea)
+                                ,new EmptyBorder(1,2,2,2)));
+                listCellRendererComponent.setHorizontalAlignment(LEFT);
+                return listCellRendererComponent;
+            }
+        });
+
+
+        JScrollPane listScroller = new JScrollPane(geomList);
+        c.fill = GridBagConstraints.BOTH;
+        c.gridwidth = GridBagConstraints.REMAINDER;
+        c.gridx = 0;
+        listScroller.setMinimumSize(new Dimension(350,200));
+        listGeometryRegion.add(listScroller,c);
+        listGeometryRegion.validate();
+
+        geomList.addListSelectionListener(s -> {
+            if (!s.getValueIsAdjusting()) {
+                if (geomList.getSelectedIndex() != -1) {
+                    tree.setSelectionRow(-1);
+                    var geom = WorldEngine.getCurrent().getStructure().getByGUID(
+                            Long.parseLong(geomList.getSelectedValue().substring(geomList.getSelectedValue().indexOf(":")+1).trim()));
+                    useGeometry(geom.get());
+                }
+            }
+        });
+
+    }
+
+    public static void useGeometry(WorldGeometry geom){
+        switch (geom.getClass().getSimpleName()){
+            case "CuboidWorldGeometry" -> {
+                var vm = new CuboidWorldGeometryViewModel();
+                vm.setModel((CuboidWorldGeometry) geom);
+                useViewModel(vm);
+            }
+            case "ModelWorldGeometry" -> {
+                var vm = new ModelWorldGeometryViewModel();
+                vm.setModel((ModelWorldGeometry) geom);
+                useViewModel(vm);
+            }
+        }
+    }
 
     public static void useViewModel(ViewModel cvm){
         cvm.createMainViewModel();
 
-        editarea.removeAll();
-        GGView view = new GGView(cvm);
-        editarea.add(view);
-        editarea.validate();
-        currentComponent = cvm.component;
-        currentview = view;
+        editArea.removeAll();
+        GGViewModelView view = new GGViewModelView(cvm);
+        editArea.add(view);
+        editArea.validate();
+        if(cvm instanceof ComponentViewModel)
+            currentComponent = (Component) cvm.getModel();
+        else
+            currentComponent = null;
+        currentView = view;
     }
 
     private static TreePath findByGUID(long id) {
@@ -796,13 +1005,15 @@ public class WorldEditor extends GGApplication implements Actionable {
         OpenGG.getDebugOptions().setLogOnComponentCreation(true);
 
         refreshComponentList();
-        updateAddRegion();
+        updateNewComponentList();
+        updateNewGeometryList();
 
         WorldEngine.shouldUpdate(false);
         RenderEngine.setProjectionData(ProjectionData.getPerspective(100, 0.2f, 3000f));
 
         var cube = ObjectCreator.createCube(5);
         RenderGroup group = new RenderGroup("renderer");
+        group.setPipeline("texture");
         group.add(cube);
 
         var gray = Texture.ofColor(Color.GRAY);
@@ -811,16 +1022,20 @@ public class WorldEditor extends GGApplication implements Actionable {
 
         RenderEngine.addRenderPath(new RenderOperation("editorrender", () -> {
             for(Component c : WorldEngine.getCurrent().getAllDescendants()){
-                if(currentComponent == null) continue;
                 if(c instanceof Renderable) continue;
-                cube.setMatrix(new Matrix4f().translate(c.getPosition()).rotate(c.getRotation()).scale(new Vector3f(0.1f)));
-                if(c == currentComponent){
-                    green.use(0);
-                }else if(currentComponent.getAllDescendants().contains(c)){
-                    blue.use(0);
+                ShaderController.setPosRotScale(c.getPosition(),c.getRotation(), new Vector3f(0.1f));
+                if(currentComponent != null){
+                    if(c == currentComponent){
+                        green.use(0);
+                    }else if(currentComponent.getAllDescendants().contains(c)){
+                        blue.use(0);
+                    }else{
+                        gray.use(0);
+                    }
                 }else{
                     gray.use(0);
                 }
+                ShaderController.useConfiguration(group.getPipeline());
                 group.render();
             }
         }));
@@ -831,9 +1046,9 @@ public class WorldEditor extends GGApplication implements Actionable {
             GGConsole.log("Autosave completed!");
         });
 
-        Executor.every(Duration.ofMillis(100), () -> {
-            if (currentview != null && currentview.isComplete()) {
-                currentview.updateUI();
+        Executor.every(Duration.ofMillis(200), () -> {
+            if (currentView != null && currentView.isComplete()) {
+                currentView.updateUI();
             }
         });
 
@@ -860,7 +1075,7 @@ public class WorldEditor extends GGApplication implements Actionable {
 
                 ViewModelComponentRegistry.register(classes);
                 ViewModelComponentRegistry.createRegisters();
-                updateAddRegion();
+                updateNewComponentList();
 
                 GGConsole.log("Succesfully initialized instance of " + underlyingApp.applicationName);
             } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
@@ -868,7 +1083,7 @@ public class WorldEditor extends GGApplication implements Actionable {
             }
         }else{
             ViewModelComponentRegistry.createRegisters();
-            updateAddRegion();
+            updateNewComponentList();
         }
 
         createWorld();
@@ -893,7 +1108,7 @@ public class WorldEditor extends GGApplication implements Actionable {
         RenderEngine.useView(cam);
 
         transmitter = this::onAction;
-        BindController.addController(transmitter);
+        BindController.addTransmitter(transmitter);
 
         WorldEngine.getCurrent().getRenderEnvironment().setSkybox(new Skybox(Texture.getSRGBCubemap(Resource.getTexturePath("skybox\\majestic_ft.png"),
                 Resource.getTexturePath("skybox\\majestic_bk.png"),
@@ -919,12 +1134,12 @@ public class WorldEditor extends GGApplication implements Actionable {
         if(((GGCanvas)WindowController.getWindow()).hasFocus()){
             Vector2f mousepos = MouseController.get();
             float mult = 0.5f;
-            Vector3f currot = new Vector3f(mousepos.multiply(mult).y-180, mousepos.multiply(mult).x, 0);
-            cam.setRotation(new Quaternionf(new Vector3f(currot.x, currot.y, currot.z)));
+            Vector3f currentRotation = new Vector3f(-(mousepos.multiply(mult).y-180), -mousepos.multiply(mult).x, 0);
+            Vector3f nvector = new Vector3f(control).multiply(delta * 15);
 
-            Vector3f nvector = new Vector3f(control).inverse().multiply(delta * 15);
+            nvector = Quaternionf.createYXZ(new Vector3f(currentRotation.x, currentRotation.y, currentRotation.z)).transform(nvector);
 
-            nvector = new Quaternionf(new Vector3f(currot.x, currot.y, currot.z)).transform(nvector);
+            cam.setRotation(Quaternionf.createYXZ(currentRotation));
             cam.setPosition(cam.getPosition().add(nvector));
         }
         RenderEngine.useView(cam);
@@ -935,34 +1150,22 @@ public class WorldEditor extends GGApplication implements Actionable {
         if(action.type == ActionType.PRESS){
             switch(action.name){
                 case "forward":
-                    control.z += 1;
-                    break;
-                case "backward":
                     control.z -= 1;
                     break;
-                case "left":
-                    control.x += 1;
+                case "backward":
+                    control.z += 1;
                     break;
-                case "right":
+                case "left":
                     control.x -= 1;
                     break;
-                case "up":
-                    control.y -= 1;
+                case "right":
+                    control.x += 1;
                     break;
-                case "down":
+                case "up":
                     control.y += 1;
                     break;
-                case "lookright":
-                    controlrot.y += 1;
-                    break;
-                case "lookleft":
-                    controlrot.y -= 1;
-                    break;
-                case "lookup":
-                    controlrot.x -= 1;
-                    break;
-                case "lookdown":
-                    controlrot.x += 1;
+                case "down":
+                    control.y -= 1;
                     break;
                 case "clear":
                     controlrot = new Vector3fm();
@@ -972,34 +1175,22 @@ public class WorldEditor extends GGApplication implements Actionable {
         }else{
             switch(action.name){
                 case "forward":
-                    control.z -= 1;
-                    break;
-                case "backward":
                     control.z += 1;
                     break;
-                case "left":
-                    control.x -= 1;
+                case "backward":
+                    control.z -= 1;
                     break;
-                case "right":
+                case "left":
                     control.x += 1;
                     break;
-                case "up":
-                    control.y += 1;
+                case "right":
+                    control.x -= 1;
                     break;
-                case "down":
+                case "up":
                     control.y -= 1;
                     break;
-                case "lookright":
-                    controlrot.y -= 1;
-                    break;
-                case "lookleft":
-                    controlrot.y += 1;
-                    break;
-                case "lookup":
-                    controlrot.x += 1;
-                    break;
-                case "lookdown":
-                    controlrot.x -= 1;
+                case "down":
+                    control.y += 1;
                     break;
 
             }

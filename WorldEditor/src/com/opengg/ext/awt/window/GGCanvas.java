@@ -117,12 +117,12 @@ public class GGCanvas extends JPanel implements Window {
 
     @Override
     public int getWidth() {
-        return super.getWidth();
+        return (int) (super.getHeight()*1.6);
     }
 
     @Override
     public int getHeight() {
-        return super.getHeight();
+        return (int) (super.getHeight()*1.25);
     }
 
     @Override

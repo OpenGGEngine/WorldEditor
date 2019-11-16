@@ -1,4 +1,4 @@
-package worldeditor;
+package worldeditor.components;
 
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreeModel;

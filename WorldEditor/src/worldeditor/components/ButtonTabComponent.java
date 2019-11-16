@@ -1,4 +1,4 @@
-package worldeditor.scripteditor;
+package worldeditor.components;
 
 import worldeditor.Theme;
 

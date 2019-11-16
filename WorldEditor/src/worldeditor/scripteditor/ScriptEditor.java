@@ -5,11 +5,11 @@ import com.opengg.core.io.FileStringLoader;
 import com.opengg.core.math.Tuple;
 import com.opengg.core.script.ScriptCompiler;
 import com.opengg.core.util.FileUtil;
+import worldeditor.components.ButtonTabComponent;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.plaf.basic.BasicButtonUI;
 import javax.tools.Diagnostic;
 import java.awt.*;
 import java.io.File;

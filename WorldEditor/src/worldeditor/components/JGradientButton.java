@@ -1,4 +1,4 @@
-package worldeditor;
+package worldeditor.components;
 
 import javax.swing.*;
 import java.awt.*;

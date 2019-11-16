@@ -16,7 +16,7 @@ import com.opengg.core.model.io.BMFFile;
 import com.opengg.core.model.process.ConvexHullUtil;
 import com.opengg.core.model.process.GGTootle;
 import com.opengg.core.model.process.ModelProcess;
-import worldeditor.JGradientButton;
+import worldeditor.components.JGradientButton;
 import worldeditor.Theme;
 
 import javax.swing.*;

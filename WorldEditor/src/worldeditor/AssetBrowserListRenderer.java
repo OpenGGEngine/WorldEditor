@@ -1,6 +1,7 @@
 package worldeditor;
 
 import com.opengg.core.util.FileUtil;
+import worldeditor.components.FileTreeModel;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;

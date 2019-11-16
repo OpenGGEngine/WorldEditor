@@ -1,4 +1,6 @@
-import com.opengg.core.console.*;~System.out.println("Hi");
-
+import com.opengg.core.console.*;
+import com.opengg.core.world.components.triggers.TriggerInfo;
+~var triggeringComp = ((Component)((TriggerInfo)c.getScriptState("lastTrigger")).data);
+System.out.println(triggeringComp);
 
 

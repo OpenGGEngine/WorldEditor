@@ -1,27 +1,17 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package worldeditor.resources;
 
-import com.opengg.core.world.components.viewmodel.ComponentViewModel;
 import com.opengg.core.editor.BindingAggregate;
-import worldeditor.components.JGradientButton;
+import com.opengg.core.world.structure.viewmodel.GeometryViewModel;
 import worldeditor.WorldEditor;
+import worldeditor.components.JGradientButton;
 import worldeditor.dataview.GGElement;
 
+import javax.swing.*;
 import java.awt.*;
 
-import javax.swing.*;
-
-/**
- *
- * @author Javier
- */
-public class NewComponentDialog extends JDialog{
-    public NewComponentDialog(BindingAggregate initializer, ComponentViewModel cvm, Window window){
-        super(window, "New Component");
+public class NewGeometryDialog extends JDialog {
+    public NewGeometryDialog(BindingAggregate initializer, GeometryViewModel cvm, Window window){
+        super(window, "New Geometry");
 
         setModalExclusionType(ModalExclusionType.APPLICATION_EXCLUDE);
         this.setLayout(new FlowLayout());
@@ -40,9 +30,9 @@ public class NewComponentDialog extends JDialog{
                 .map(GGElement::new)
                 .forEach(total::add);
 
-        JGradientButton create = new JGradientButton("Create Component");
+        JGradientButton create = new JGradientButton("Create Geometry");
         create.addActionListener(e -> {
-            WorldEditor.createComponent(initializer, cvm);
+            WorldEditor.createGeometry(initializer, cvm);
             this.dispose();
         });
         create.setBorderPainted(false);

@@ -84,12 +84,12 @@ void main() {
 	// Are outer samples of the tab beyond the edge ... 
 	if (lumaFourTab < lumaMin || lumaFourTab > lumaMax)
 	{
-		// ... yes, so setAsPrimary only two samples.
+		// ... yes, so use only two samples.
 		fcolor = vec4(rgbTwoTab, 1.0); 
 	}
 	else
 	{
-		// ... no, so setAsPrimary four samples.
+		// ... no, so use four samples. 
 		fcolor = vec4(rgbFourTab, 1.0);
 	}
 

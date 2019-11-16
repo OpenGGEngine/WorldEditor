@@ -10,7 +10,7 @@ import com.opengg.core.engine.Resource;
 import com.opengg.core.render.texture.TextureData;
 import com.opengg.core.render.texture.TextureManager;
 import com.opengg.core.util.GGFuture;
-import worldeditor.JGradientButton;
+import worldeditor.components.JGradientButton;
 
 
 import javax.swing.*;
